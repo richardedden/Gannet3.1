@@ -1,4 +1,4 @@
-# Gannet 3.0
+# Gannet 3.1
 
 Open-source, MATLAB-based software for automated data processing and quantification of edited magnetic resonance spectroscopy (MRS) data.
 
@@ -14,19 +14,20 @@ Gannet runs in MATLAB (we recommend using the latest release if possible). Addit
 * Optimization
 * Signal Processing
 * Statistics and Machine Learning
+* Wavelet
 
 To run the voxel co-registration and structural image segmentation modules, [SPM12](https://www.fil.ion.ucl.ac.uk/spm/software/spm12/) must be installed.
 
 ### Installing
 
-The simplest way to install Gannet 3.0 is to download the zipped [master folder](https://github.com/richardedden/Gannet3.0/archive/master.zip), unzip it and then move the Gannet3.0-master folder to your MATLAB directory. To add the folder to your search path, run the following line of code in the command window of MATLAB:
+The simplest way to install Gannet 3.1 is to download the zipped [master folder](https://github.com/richardedden/Gannet3.1/archive/master.zip), unzip it and then move the Gannet3.1-master folder to your MATLAB directory. To add the folder to your search path, run the following line of code in the command window of MATLAB:
 
 macOS
 ```
-addpath(genpath('~/Documents/MATLAB/Gannet3.0-master'));
+addpath(genpath('~/Documents/MATLAB/Gannet3.1-master'));
 ```
 
-Alternatively, open the Set Path dialog box from the MATLAB menu, click 'Add with Subfolders', find the Gannet3.0-master folder and then select it. When done, press 'Save' to permanently save the Gannet folder to MATLAB's search path.
+Alternatively, open the Set Path dialog box from the MATLAB menu, click 'Add with Subfolders', find the Gannet3.1-master folder and then select it. When done, press 'Save' to permanently save the Gannet folder to MATLAB's search path.
 
 ## Built With
 
@@ -38,17 +39,17 @@ For bug reporting, contribution requests and/or queries, please contact us at: g
 
 ## Versioning
 
-Versioning is conducted on a module-specific basis using the style YYMMDD. That is, each Gannet module has its own release version. Major changes or addition of new functionalities are reflected in the version updates, while minor bug fixes are not.
+Semantic versionining is used when updates are made to Gannet using the style 3.1.x. Versioning is also conducted on a module-specific basis using the style YYMMDD. That is, each Gannet module has its own release version.
 
 ## Authors
 
 * **Richard Edden** (The Johns Hopkins University)
+* **Mark Mikkelsen** (The Johns Hopkins University)
+* **Georg Oeltzschner** (The Johns Hopkins University)
+* **Muhammad Saleh** (The Johns Hopkins University)
 * **C. John Evans** (Cardiff University)
 * **Ashley Harris** (University of Calgary)
 * **Nicolaas Puts** (The Johns Hopkins University)
-* **Georg Oeltzschner** (The Johns Hopkins University)
-* **Muhammad Saleh** (The Johns Hopkins University)
-* **Mark Mikkelsen** (The Johns Hopkins University)
 
 ## License
 
@@ -62,6 +63,7 @@ This software is open-source and does not have a specific license, but should yo
 We wish to thank the following individuals for their contributions to the development of Gannet and shared data processing code:
 
 * Ralph Noeske (GE Berlin)
+* Jamie Near (McGill University)
 * Peter Barker (The Johns Hopkins University)
 * Robin de Graaf (Yale School of Medicine)
 * Philipp Ehses (Max Planck Institute for Biological Cybernetics, Tübingen)
