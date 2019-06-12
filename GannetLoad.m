@@ -14,8 +14,8 @@ function MRS_struct = GannetLoad(varargin)
 %   7. Build GannetLoad output
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-MRS_struct.version.Gannet = '3.1.0';
-MRS_struct.version.load = '190611'; % set to date when final updates have been made
+MRS_struct.version.Gannet = '3.1.1';
+MRS_struct.version.load = '190612'; % set to date when final updates have been made
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   0. Check the file list for typos
@@ -502,26 +502,30 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
             
             for jj = 1:length(MRS_struct.p.target)
                 
-                if strcmp(MRS_struct.p.AlignTo,'RobustSpecReg')
-                    % Determine weights for weighted averaging (MM: 190423)
-                    on_inds  = find(MRS_struct.fids.ON_OFF(jj,:) == 1);
-                    off_inds = find(MRS_struct.fids.ON_OFF(jj,:) == 0);
-                    DIFF = zeros(size(AllFramesFTrealign,1), size(AllFramesFTrealign,2)/4);
+                if strcmp(MRS_struct.p.AlignTo,'RobustSpecReg') % determine weights for weighted averaging (MM: 190423)
+                    
+                    ON_inds  = find(MRS_struct.fids.ON_OFF(jj,:) == 1);
+                    OFF_inds = find(MRS_struct.fids.ON_OFF(jj,:) == 0);
+                    DIFFs = zeros(size(AllFramesFTrealign,1), size(AllFramesFTrealign,2)/4);
                     inds = 1:2;
-                    for ll = 1:size(AllFramesFTrealign,2)/4
-                        tmpON  = sum(AllFramesFTrealign(:,on_inds(inds)),2);
-                        tmpOFF = sum(AllFramesFTrealign(:,off_inds(inds)),2);
-                        DIFF(:,ll) = tmpON - tmpOFF;
+                    
+                    for ll = 1:size(DIFFs,2)
+                        tmpON  = sum(AllFramesFTrealign(:,ON_inds(inds)),2);
+                        tmpOFF = sum(AllFramesFTrealign(:,OFF_inds(inds)),2);
+                        DIFFs(:,ll) = tmpON - tmpOFF;
                         inds = inds + 2;
                     end
-                    %DIFF = real(ifft(fftshift(DIFF(freqLim,:))));
                     
-                    freqLim = MRS_struct.spec.freq <= 4.25 & MRS_struct.spec.freq >= 1.8;
-                    D = zeros(size(DIFF,2));
-                    for ll = 1:size(DIFF,2)
-                        for mm = 1:size(DIFF,2)
-                            tmp = sum((real(DIFF(freqLim,ll)) - real(DIFF(freqLim,mm))).^2) / sum(freqLim);
-                            %tmp = sum((DIFF(1:200,ll) - DIFF(1:200,mm)).^2) / 200;
+                    DIFFs = ifft(ifftshift(DIFFs,1),[],1);
+                    DIFFs = fftshift(fft(DIFFs(1:MRS_struct.p.npoints(ii),:),[],1),1);
+                    
+                    freq = (size(DIFFs,1) + 1 - (1:size(DIFFs,1))) / size(DIFFs,1) * freqRange + 4.68 - freqRange/2;
+                    freqLim = freq <= 4.25 & freq >= 1.8;
+                    D = zeros(size(DIFFs,2));
+                    
+                    for ll = 1:size(DIFFs,2)
+                        for mm = 1:size(DIFFs,2)
+                            tmp = sum((real(DIFFs(freqLim,ll)) - real(DIFFs(freqLim,mm))).^2) / sum(freqLim);
                             if tmp == 0
                                 D(ll,mm) = NaN;
                             else
@@ -529,6 +533,7 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
                             end
                         end
                     end
+                    
                     d = nanmean(D);
                     w = 1./d.^2;
                     w = repelem(w,2);
@@ -539,9 +544,12 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
                     ON  = sum(w .* AllFramesFTrealign(:,MRS_struct.fids.ON_OFF(jj,:)==1),2);
                     
                     MRS_struct.out.reject(:,ii) = zeros(size(AllFramesFTrealign,2),1);
+                    
                 else
+                    
                     OFF = mean(AllFramesFTrealign(:,(MRS_struct.fids.ON_OFF(jj,:)==0)' & MRS_struct.out.reject(:,ii)==0),2);
                     ON  = mean(AllFramesFTrealign(:,(MRS_struct.fids.ON_OFF(jj,:)==1)' & MRS_struct.out.reject(:,ii)==0),2);
+                    
                 end
                 
                 MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{jj}).off(ii,:) = OFF;
@@ -550,14 +558,17 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
                 MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{jj}).diff(ii,:) = (ON - OFF)/2;
                 MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{jj}).diff_noalign(ii,:) = (mean(AllFramesFT(:,MRS_struct.fids.ON_OFF(jj,:)==1),2) - mean(AllFramesFT(:,MRS_struct.fids.ON_OFF(jj,:)==0),2))/2;
                 
-                % Edit-OFF,-OFF spectrum (for Cr referencing) (MM: 180725)
-                if strcmp(MRS_struct.p.AlignTo,'RobustSpecReg')
-                    % Determine weights for weighted averaging (MM: 190423)
-                    off_off_inds = find(all(MRS_struct.fids.ON_OFF'==0,2));
-                    D = zeros(size(AllFramesFTrealign,2)/4);
-                    for ll = 1:size(AllFramesFTrealign,2)/4
-                        for mm = 1:size(AllFramesFTrealign,2)/4
-                            tmp = sum((real(AllFramesFTrealign(freqLim,off_off_inds(ll))) - real(AllFramesFTrealign(freqLim,off_off_inds(mm)))).^2) / sum(freqLim);
+                % Edit-OFF,-OFF spectrum (for Cr referencing)
+                if strcmp(MRS_struct.p.AlignTo,'RobustSpecReg') % determine weights for weighted averaging (MM: 190423)
+                    
+                    OFF_OFF_inds = find(all(MRS_struct.fids.ON_OFF'==0,2));
+                    OFF_OFFs = ifft(ifftshift(AllFramesFTrealign(:,OFF_OFF_inds),1),[],1);
+                    OFF_OFFs = fftshift(fft(OFF_OFFs(1:MRS_struct.p.npoints(ii),:),[],1),1);
+                    D = zeros(size(OFF_OFFs,2));
+                    
+                    for ll = 1:size(OFF_OFFs,2)
+                        for mm = 1:size(OFF_OFFs,2)
+                            tmp = sum((real(OFF_OFFs(freqLim,ll)) - real(OFF_OFFs(freqLim,mm))).^2) / sum(freqLim);
                             if tmp == 0
                                 D(ll,mm) = NaN;
                             else
@@ -565,13 +576,17 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
                             end
                         end
                     end
+                    
                     d = nanmean(D);
                     w = 1./d.^2;
                     w = w/sum(w);
                     w = repmat(w, [size(AllFramesFTrealign,1) 1]);
-                    OFF_OFF = sum(w .* AllFramesFTrealign(:,off_off_inds),2);
+                    OFF_OFF = sum(w .* AllFramesFTrealign(:,OFF_OFF_inds),2);
+                    
                 else
+                    
                     OFF_OFF = mean(AllFramesFTrealign(:,all(MRS_struct.fids.ON_OFF'==0,2) & MRS_struct.out.reject(:,ii)==0),2);
+                    
                 end
                 
                 MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{jj}).off_off(ii,:) = OFF_OFF;
@@ -581,19 +596,26 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
         else
             
             if strcmp(MRS_struct.p.AlignTo,'RobustSpecReg')
+                
                 % Determine weights for weighted averaging (MM: 190423)
-                on_inds  = find(MRS_struct.fids.ON_OFF == 1);
-                off_inds = find(MRS_struct.fids.ON_OFF == 0);
-                DIFF = zeros(size(AllFramesFTrealign,1), size(AllFramesFTrealign,2)/2);
+                ON_inds  = find(MRS_struct.fids.ON_OFF == 1);
+                OFF_inds = find(MRS_struct.fids.ON_OFF == 0);
+                DIFFs = zeros(size(AllFramesFTrealign,1), size(AllFramesFTrealign,2)/2);
+                
                 for ll = 1:size(AllFramesFTrealign,2)/2
-                    DIFF(:,ll) = AllFramesFTrealign(:,on_inds(ll)) - AllFramesFTrealign(:,off_inds(ll));
+                    DIFFs(:,ll) = AllFramesFTrealign(:,ON_inds(ll)) - AllFramesFTrealign(:,OFF_inds(ll));
                 end
                 
-                freqLim = MRS_struct.spec.freq <= 4.25 & MRS_struct.spec.freq >= 1.8;
+                DIFFs = ifft(ifftshift(DIFFs,1),[],1);
+                DIFFs = fftshift(fft(DIFFs(1:MRS_struct.p.npoints(ii),:),[],1),1);
+                
+                freq = (size(DIFFs,1) + 1 - (1:size(DIFFs,1))) / size(DIFFs,1) * freqRange + 4.68 - freqRange/2;
+                freqLim = freq <= 4.25 & freq >= 1.8;
                 D = zeros(size(AllFramesFTrealign,2)/2);
+                
                 for ll = 1:size(AllFramesFTrealign,2)/2
                     for mm = 1:size(AllFramesFTrealign,2)/2
-                        tmp = sum((real(DIFF(freqLim,ll)) - real(DIFF(freqLim,mm))).^2) / sum(freqLim);
+                        tmp = sum((real(DIFFs(freqLim,ll)) - real(DIFFs(freqLim,mm))).^2) / sum(freqLim);
                         if tmp == 0
                             D(ll,mm) = NaN;
                         else
@@ -601,6 +623,7 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
                         end
                     end
                 end
+                
                 d = nanmean(D);
                 w = 1./d.^2;
                 w = w/sum(w);
@@ -610,9 +633,12 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
                 MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).on(ii,:)  = sum(w .* AllFramesFTrealign(:,MRS_struct.fids.ON_OFF==1),2);
                 
                 MRS_struct.out.reject(:,ii) = zeros(size(AllFramesFTrealign,2),1);
+                
             else
+                
                 MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).off(ii,:) = mean(AllFramesFTrealign(:,(MRS_struct.fids.ON_OFF==0)' & MRS_struct.out.reject(:,ii)==0), 2);
                 MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).on(ii,:)  = mean(AllFramesFTrealign(:,(MRS_struct.fids.ON_OFF==1)' & MRS_struct.out.reject(:,ii)==0), 2);
+                
             end
             
             MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).diff(ii,:) = (MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).on(ii,:) - MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).off(ii,:))/2;
@@ -622,6 +648,7 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
         
         % Remove residual water from diff and diff_noalign spectra using HSVD -- GO & MGSaleh 2016
         if MRS_struct.p.water_removal
+            
             for jj = 1:length(MRS_struct.p.target)
                 if jj == 1
                     fprintf('\nFiltering out residual water signal...\n');
@@ -644,6 +671,7 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
                 MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{jj}).diff(ii,:) = MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{jj}).diff(ii,:) - baseMean_diff;
                 MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{jj}).diff_noalign(ii,:) = MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{jj}).diff_noalign(ii,:) - baseMean_diffnoalign;
             end
+            
         end
         
         
