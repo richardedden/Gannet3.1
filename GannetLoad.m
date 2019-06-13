@@ -10,12 +10,11 @@ function MRS_struct = GannetLoad(varargin)
 %   3. Load data from files
 %   4. Reconstruction of coil-sensitivity maps (PRIAM only)
 %   5. Apply appropriate pre-processing
-%   6. Output processed spectra
-%   7. Build GannetLoad output
+%   6. Build GannetLoad output
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-MRS_struct.version.Gannet = '3.1.1';
-MRS_struct.version.load = '190612'; % set to date when final updates have been made
+MRS_struct.version.Gannet = '3.1.2';
+MRS_struct.version.load = '190613'; % set to date when final updates have been made
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   0. Check the file list for typos
@@ -676,7 +675,7 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
         
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        %   6. Build GannetLoad Output
+        %   6. Build GannetLoad output
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         if ishandle(101)

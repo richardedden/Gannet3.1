@@ -3,7 +3,7 @@ function MRS_struct = GannetFit(MRS_struct, varargin)
 % Started by RAEE Nov 5, 2012
 % Updates by MGS, MM 2016-2019
 
-MRS_struct.version.fit = '190530';
+MRS_struct.version.fit = '190613';
 
 if MRS_struct.p.PRIAM
     vox = MRS_struct.p.Vox;
@@ -14,10 +14,10 @@ end
 if nargin < 2
     target = MRS_struct.p.target;
 elseif nargin > 1
-    % varargin = Optional arguments if user wants to overwrite fitting
-    %            parameters set in GannetPreInitialise; can include several
-    %            options, which are:
-    %            'GABA' or 'Glx': target metabolite
+% varargin = Optional arguments if user wants to overwrite fitting
+%            parameters set in GannetPreInitialise; can include several
+%            options, which are:
+%            'GABA' or 'Glx': target metabolite
     switch varargin{1}
         case 'GABA'
             MRS_struct.p.target = 'GABA';
@@ -199,7 +199,7 @@ for kk = 1:length(vox)
                     s = 1;
                 end
                 
-                if strcmp(MRS_struct.p.GSH_model,'FiveGauss')
+                if MRS_struct.p.TE(ii) < 100 % MM (190613)
                     
                     GSHgaussModel = @FiveGaussModel;
                     
@@ -226,7 +226,7 @@ for kk = 1:length(vox)
                     lb([1 4 7 10 13 16 17 18]) = lb([1 4 7 10 13 16 17 18]) / maxinGSH;
                     ub([1 4 7 10 13 16 17 18]) = ub([1 4 7 10 13 16 17 18]) / maxinGSH;
                     
-                elseif strcmp(MRS_struct.p.GSH_model,'SixGauss')
+                else
                     
                     GSHgaussModel = @SixGaussModel;
                     
@@ -275,18 +275,18 @@ for kk = 1:length(vox)
                 [~, residPlot] = nlinfit(freq(freqbounds), real(DIFF(ii,freqbounds)) / maxinGSH, GSHgaussModel, GaussModelParam, nlinopts); % re-run for residuals for output figure
                 
                 % Rescale fit parameters and residuals
-                if strcmp(MRS_struct.p.GSH_model,'FiveGauss')
+                if MRS_struct.p.TE(ii) < 100 % MM (190613)
                     GaussModelParam([1 4 7 10 13 16 17 18]) = GaussModelParam([1 4 7 10 13 16 17 18]) * maxinGSH;
-                elseif strcmp(MRS_struct.p.GSH_model,'SixGauss')
+                else
                     GaussModelParam([1 4 7 10 13 16 19 20 21]) = GaussModelParam([1 4 7 10 13 16 19 20 21]) * maxinGSH;
                 end
                 resid = resid * maxinGSH;
                 residPlot = residPlot * maxinGSH;
                 
                 GSHGaussModelParam = GaussModelParam;
-                if strcmp(MRS_struct.p.GSH_model,'FiveGauss')
+                if MRS_struct.p.TE(ii) < 100 % MM (190613)
                     GSHGaussModelParam(4:3:13) = 0;
-                elseif strcmp(MRS_struct.p.GSH_model,'SixGauss')
+                else
                     GSHGaussModelParam(4:3:16) = 0;
                 end
                 
@@ -326,7 +326,7 @@ for kk = 1:length(vox)
                 
                 FourGaussModelInit = [peak_amp*0.16 -100 1.18 peak_amp*0.3 -1000 1.325 offset slope 0];
                 lb = [0 -300 0.9 0 -5000 1.0  -1 -1 -1];
-                ub = [1 0 1.4 1 0 1.6  1 1 1];
+                ub = [1 0 1.4 1 0 1.6 1 1 1];
                 
                 FourGaussModelInit = lsqcurvefit(@FourGaussModel, FourGaussModelInit, freq(freqbounds), real(DIFF(ii,freqbounds)), lb, ub,lsqopts);
                 [FourGaussModelParam, resid] = nlinfit(freq(freqbounds), real(DIFF(ii,freqbounds)), @FourGaussModel, FourGaussModelInit, nlinopts);
@@ -1489,9 +1489,9 @@ F = x(1)*exp(x(2)*(freq-x(3)).*(freq-x(3))) + ...
 function F = EtOHModel(x,freq)
 % Function for EtOH model
 
-L1 = x(1) ./ (1 + ((freq-x(2)) / (x(3)/2)).^2);
-L2 = x(4) ./ (1 + ((freq-x(5)) / (x(6)/2)).^2);
-B  = x(7) .* (freq-x(3)) + x(8);
+L1 = x(1) ./ (1 + ((freq - x(2)) / (x(3)/2)).^2);
+L2 = x(4) ./ (1 + ((freq - x(5)) / (x(6)/2)).^2);
+B  = x(7) .* (freq - x(3)) + x(8);
 F  = L1 + L2 + B;
 
 

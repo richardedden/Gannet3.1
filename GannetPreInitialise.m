@@ -20,8 +20,6 @@ function MRS_struct = GannetPreInitialise(MRS_struct)
     MRS_struct.p.AlignTo = 'RobustSpecReg'; % options are 'RobustSpecReg' (recommended), 'SpecReg', 'SpecRegHERMES',
                                             % 'Cr', 'Cho', 'NAA', 'H2O', 'CrOFF' or 'none'
     MRS_struct.p.Vox = {'vox1','vox2'}; % for naming voxels in PRIAM data, e.g.: {'anterior','posterior'}, {'right','left'}, etc.
-    MRS_struct.p.GSH_model = 'FiveGauss'; % choice of model for fitting GSH;
-                                          % options are 'FiveGauss' (recommended for medium-TE HERMES) or 'SixGauss' (recommended for long-TE MEGA-PRESS)
     MRS_struct.p.FitResidWater = 0; % 1 = YES, fit the residual water signal in the DIFF spectrum to calculate water suppression factor
     
 % Flags
