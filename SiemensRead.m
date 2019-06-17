@@ -93,11 +93,21 @@ while isempty(strfind(tline, head_end_text))
 end
 
 %%RE 110726 Take the used bits of the header info
+if isfield(rda,'MRFrequency')
 MRS_struct.p.LarmorFreq(MRS_struct.ii) = rda.MRFrequency;
+end
+if isfield(rda,'VectorSize')
 MRS_struct.p.npoints(MRS_struct.ii) = rda.VectorSize;
+end
+if isfield(rda,'DwellTime')
 MRS_struct.p.sw(MRS_struct.ii) = 1/rda.DwellTime*1E6;
+end
+if isfield(rda,'TR')
 MRS_struct.p.TR(MRS_struct.ii) = rda.TR;
+end
+if isfield(rda,'TE')
 MRS_struct.p.TE(MRS_struct.ii) = rda.TE; % GO (17/09/08)
+end
 
 %
 % So now we should have got to the point after the header text

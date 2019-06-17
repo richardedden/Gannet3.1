@@ -200,6 +200,10 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
             else
                 MRS_struct = SiemensDICOMRead(MRS_struct,metabfile{ii}); % GO 11/01/2016
             end
+            % MM (160914): Need to set Water_Positive based on water signal
+            if MRS_struct.p.Water_Positive == 0
+                MRS_struct.fids.data = -MRS_struct.fids.data;
+            end
             FullData = MRS_struct.fids.data;
             % Determine order of ON and OFF acquisitions
             MRS_struct = SpecifyOnOffOrder(MRS_struct);
@@ -211,6 +215,10 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
                 WaterData = MRS_struct.fids.data_water;
             else
                 MRS_struct = DICOMRead(MRS_struct,metabfile{ii}); % GO 11/01/2016
+            end
+            % MM (160914): Need to set Water_Positive based on water signal
+            if MRS_struct.p.Water_Positive == 0
+                MRS_struct.fids.data = -MRS_struct.fids.data;
             end
             FullData = MRS_struct.fids.data;
             

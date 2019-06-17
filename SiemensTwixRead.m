@@ -78,6 +78,15 @@ end
 % If additional data points have been acquired before the echo starts,
 % remove these here.
 MetabData = MetabData(:,(MRS_struct.p.pointsBeforeEcho+1):end,:);
+% Undo phase cycling
+% Seems to be needed for some of Jamie's sequences
+if strcmp(MRS_struct.p.seqorig,'JN')
+    corrph = repmat([-1 1], [size(MetabData,2) size(MetabData,3)/2]);
+    corrph = repmat(corrph, [size(MetabData,1) 1 1]);
+    corrph = reshape(corrph, [size(MetabData,1) size(MetabData,2) size(MetabData,3)]);
+    MetabData = MetabData .* corrph;
+end
+
 MRS_struct.p.npoints(ii) = MRS_struct.p.npoints(ii) - MRS_struct.p.pointsBeforeEcho;
 
 % If water reference is provided, load this one as well, and populate
@@ -94,12 +103,24 @@ if nargin == 3
     MRS_struct.p.seqtype_water           = WaterHeader.seqtype;
     if isfield(WaterHeader,'deltaFreq')
         MRS_struct.p.Siemens.deltaFreq.water(ii) = WaterHeader.deltaFreq;
-        MRS_struct.p.Siemens = reorderstructure(MRS_struct.p.Siemens, 'editRF', 'deltaFreq');
+        if isfield(WaterHeader,'editRF')
+            MRS_struct.p.Siemens = reorderstructure(MRS_struct.p.Siemens, 'editRF', 'deltaFreq');
+        end
     end
     
     % If additional data points have been acquired before the echo starts,
     % remove these here.
     WaterData = WaterData(:,(MRS_struct.p.pointsBeforeEcho_water+1):end,:);
+    
+    % Undo phase cycling
+    % Seems to be needed for some of Jamie's sequences
+    if strcmp(MRS_struct.p.seqorig,'JN')
+        corrph = repmat([-1 1], [size(WaterData,2) size(WaterData,3)/2]);
+        corrph = repmat(corrph, [size(WaterData,1) 1 1]);
+        corrph = reshape(corrph, [size(WaterData,1) size(WaterData,2) size(WaterData,3)]);
+        WaterData = WaterData .* corrph;
+    end
+    
     MRS_struct.p.npoints_water(ii) = MRS_struct.p.npoints_water(ii) - MRS_struct.p.pointsBeforeEcho_water;
     
     % Coil combination and prephasing
@@ -126,6 +147,7 @@ if nargin == 3
     WaterData = squeeze(sum(conj(WaterData),1));
     % Average across averages
     WaterData = squeeze(mean(WaterData,2));
+    
     MRS_struct.fids.data_water = double(WaterData);
 end
 
@@ -249,19 +271,23 @@ end
 % editing pulse parameters
 if isfield(twix_obj.hdr.MeasYaps, 'sWipMemBlock')
     if isfield(twix_obj.hdr.MeasYaps.sWipMemBlock, 'adFree')
-        param = twix_obj.hdr.MeasYaps.sWipMemBlock.adFree;
-        param = param(~cellfun('isempty',param));
-        TwixHeader.editRF.freq = [param{1}, param{3}+(param{3}-param{1})];
-        TwixHeader.editRF.centerFreq = param{3};
-        TwixHeader.editRF.bw = param{2};
+        if length(twix_obj.hdr.MeasYaps.sWipMemBlock.adFree) == 3
+            param = twix_obj.hdr.MeasYaps.sWipMemBlock.adFree;
+            param = param(~cellfun('isempty',param));
+            TwixHeader.editRF.freq = [param{1}, param{3}+(param{3}-param{1})];
+            TwixHeader.editRF.centerFreq = param{3};
+            TwixHeader.editRF.bw = param{2};
+        end
     end
 elseif isfield(twix_obj.hdr.MeasYaps, 'sWiPMemBlock')
     if isfield(twix_obj.hdr.MeasYaps.sWiPMemBlock, 'adFree')
-        param = twix_obj.hdr.MeasYaps.sWiPMemBlock.adFree;
-        param = param(~cellfun('isempty',param));
-        TwixHeader.editRF.freq = [param{1}, param{3}+(param{3}-param{1})];
-        TwixHeader.editRF.centerFreq = param{3};
-        TwixHeader.editRF.bw = param{2};
+        if length(twix_obj.hdr.MeasYaps.sWiPMemBlock.adFree) == 3
+            param = twix_obj.hdr.MeasYaps.sWiPMemBlock.adFree;
+            param = param(~cellfun('isempty',param));
+            TwixHeader.editRF.freq = [param{1}, param{3}+(param{3}-param{1})];
+            TwixHeader.editRF.centerFreq = param{3};
+            TwixHeader.editRF.bw = param{2};
+        end
     end
 end
 % delta frequency (center of slice selection)

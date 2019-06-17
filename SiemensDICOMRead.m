@@ -32,6 +32,7 @@ function MRS_struct = SiemensDICOMRead(MRS_struct,metabfile,waterfile)
 %           values. Thanks to Alen Tersakyan.
 %   0.96: Fixed to accomodate batch processing of coregister/segmentation.
 %           (2018-09-19)
+%   0.97: Loading TR and TE of water reference.
 %   
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -44,11 +45,7 @@ ii = MRS_struct.ii;
 % Locate folder and find all files in it. Will usually all be either upper or
 % lower case, so concatenating the results of both should be fine and with
 % no overlap.
-% ima_file_list = [dir([folder,'/*.IMA']); dir([folder,'/*.ima'])]; % may
-% cause problems on win/unix systems, take out for now % GO 11/16/2016
-% [folder,~,~] = fileparts(metabfile); % GO 11/01/2016
 folder = pwd; % GO 11/01/2016
-% ima_file_list = dir([folder,'/*.IMA']); % GO 11/16/2016
 ima_file_list = dir('*.IMA'); % GO 11/16/2016
 fprintf('%d water-suppressed IMA files detected in %s\n',length(ima_file_list),folder);
 
@@ -128,6 +125,13 @@ end
 
 % Set up the file name array.
 if nargin == 3
+    
+    %%% WATER HEADER INFO PARSING %%%
+    DicomHeaderWater = read_dcm_header(waterfile);
+    MRS_struct.p.TR_water(ii) = DicomHeaderWater.TR;
+    MRS_struct.p.TE_water(ii) = DicomHeaderWater.TE;
+    %%% /WATER HEADER INFO PARSING %%%
+    
     [waterfolder,~,~] = fileparts(waterfile);
     water_file_list = dir([waterfolder,'/*.IMA']);
     fprintf('%d water-unsuppressed IMA files detected in %s.\n',length(water_file_list),waterfolder);
