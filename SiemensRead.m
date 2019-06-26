@@ -93,6 +93,17 @@ while isempty(strfind(tline, head_end_text))
 end
 
 %%RE 110726 Take the used bits of the header info
+if isfield(rda,'VOIRotationInPlane')
+    MRS_struct.p.VoI_InPlaneRot(MRS_struct.ii)         = rda.VOIRotationInPlane;
+else
+    MRS_struct.p.VoI_InPlaneRot(MRS_struct.ii)         = 0;
+end
+MRS_struct.p.voxdim(MRS_struct.ii,1)               = rda.FoVHeight;
+MRS_struct.p.voxdim(MRS_struct.ii,2)               = rda.FoVWidth;
+MRS_struct.p.voxdim(MRS_struct.ii,3)               = rda.SliceThickness;
+MRS_struct.p.voxoff(MRS_struct.ii,1)               = rda.PositionVector(1);
+MRS_struct.p.voxoff(MRS_struct.ii,2)               = rda.PositionVector(2);
+MRS_struct.p.voxoff(MRS_struct.ii,3)               = rda.PositionVector(3);
 if isfield(rda,'MRFrequency')
 MRS_struct.p.LarmorFreq(MRS_struct.ii) = rda.MRFrequency;
 end

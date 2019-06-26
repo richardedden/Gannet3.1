@@ -33,6 +33,7 @@ function MRS_struct = SiemensTwixRead(MRS_struct,fname,fname_water)
 %       2018-09-25: Correct extraction of acquired data points for
 %                   custom-built MEGA-PRESS sequences.
 %       2018-12-18: Bugfix in data dimension assignment.
+%       2019-06-26: Bugfix in sequence origin determination.
 
 ii = MRS_struct.ii;
 
@@ -303,7 +304,7 @@ if strfind(TwixHeader.sequenceFileName,'svs_edit')
     if strcmp(TwixHeader.sequenceFileName(end-3:end),'univ')
         TwixHeader.seqorig = 'Universal'; % Universal sequence
     else
-        if strcmp(TwixHeader.sequenceFileName(end-2:end),'529') || strcmp(TwixHeader.sequenceFileName(end-2:end),'859')
+        if ~isempty(strfind(TwixHeader.sequenceFileName,'529')) || ~isempty(strfind(TwixHeader.sequenceFileName,'859'))
             TwixHeader.seqorig = 'WIP'; % Siemens WIP
         else
             TwixHeader.seqorig = 'Custom'; % There are some custom implementations out there...
