@@ -1,5 +1,6 @@
 function [FitParams, rejectframe, residCr] = FitChoCr(freq, FrameData, initx, LarmorFreq)
-%All parameters in initx are in standard units.
+
+% All parameters in initx are in standard units.
 % Conversion factors to FWHM in Hz, delta f0 in Hz, phase in degrees
 conv = [1 2*LarmorFreq LarmorFreq 180/pi 1 1 1];
 initx = initx./conv;
@@ -13,10 +14,10 @@ nframes = size(FrameData,2);
 FitParams = zeros(nframes,7);
 
 for ii = 1:nframes
-    initx = lsqcurvefit(@TwoLorentzModel, initx, freq', real(FrameData(:,ii)), [], [], lsqopts);    
+    initx = lsqcurvefit(@TwoLorentzModel, initx, freq', real(FrameData(:,ii)), [], [], lsqopts);
     [FitParams(ii,:), residCr] = nlinfit(freq', real(FrameData(:,ii)), @TwoLorentzModel, initx, nlinopts);
     
-    %fit_plot = TwoLorentzModel(FitParams(ii,:), freq);    
+    %fit_plot = TwoLorentzModel(FitParams(ii,:), freq);
     %figure(3);
     %plot(freq', real(FrameData(:,ii)), 'g', freq', fit_plot,'b');
     %set(gca,'XDir','reverse');

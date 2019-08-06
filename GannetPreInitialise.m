@@ -9,7 +9,6 @@ function MRS_struct = GannetPreInitialise(MRS_struct)
                                        % if HERCULES:
                                        %   {'GABAGlx','GSH'}
     MRS_struct.p.ONOFForder = 'offfirst'; % order of editing pulses; options are 'onfirst' or 'offfirst'
-    MRS_struct.p.Water_Positive = 1; % 1 = YES; if water suppression method inverts residual water signal, set to 0
     MRS_struct.p.seqorig = 'JHU'; % origin of Philips patch; options are 'JHU' or 'Philips'
     
 % Analysis parameters
@@ -24,7 +23,7 @@ function MRS_struct = GannetPreInitialise(MRS_struct)
     
 % Flags
     MRS_struct.p.HERMES   = 0; % 1 = YES, 0 = NO
-    MRS_struct.p.HERCULES = 0; % 1 = YES, 0 = NO (if 1, MRS_struct.p.HERMES must be set to 1 as well)
+    MRS_struct.p.HERCULES = 0; % 1 = YES, 0 = NO (if 1, MRS_struct.p.HERMES *must* be set to 1 as well)
     MRS_struct.p.PRIAM    = 0; % 1 = YES, 0 = NO
     MRS_struct.p.phantom  = 0; % 1 = YES (assumes phantom was scanned at room temperature), 0 = NO (for in vivo data)
     MRS_struct.p.mat      = 0; % 1 = YES, save MRS_struct as .mat file

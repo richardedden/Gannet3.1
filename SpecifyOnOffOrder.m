@@ -27,24 +27,34 @@ switch MRS_struct.p.ONOFForder
                     end
                     
                 case 'Philips'
-                    if all(ismember(MRS_struct.p.target,{'GABAGlx','GSH'})) || all(ismember(MRS_struct.p.target,{'GABA','GSH'})) || all(ismember(MRS_struct.p.target,{'Glx','GSH'}))
-                        % 1=ExpC, 2=ExpB, 3=ExpA, 4=ExpD
-                        MRS_struct.fids.ON_OFF = repmat([0 1 1 0; 1 0 1 0], [1 size(MRS_struct.fids.data,2)/4]);
-                    elseif all(ismember(MRS_struct.p.target,{'GSH','Lac'}))
-                        % 1=ExpC, 2=ExpB, 3=ExpA, 4=ExpD
-                        MRS_struct.fids.ON_OFF = repmat([0 1 1 0; 1 0 1 0], [1 size(MRS_struct.fids.data,2)/4]);
+                    if ~MRS_struct.p.HERCULES
+                        if all(ismember(MRS_struct.p.target,{'GABAGlx','GSH'})) || all(ismember(MRS_struct.p.target,{'GABA','GSH'})) || all(ismember(MRS_struct.p.target,{'Glx','GSH'}))
+                            % 1=ExpC, 2=ExpB, 3=ExpA, 4=ExpD
+                            MRS_struct.fids.ON_OFF = repmat([0 1 1 0; 1 0 1 0], [1 size(MRS_struct.fids.data,2)/4]);
+                        elseif all(ismember(MRS_struct.p.target,{'GSH','Lac'}))
+                            % 1=ExpC, 2=ExpB, 3=ExpA, 4=ExpD
+                            MRS_struct.fids.ON_OFF = repmat([0 1 1 0; 1 0 1 0], [1 size(MRS_struct.fids.data,2)/4]);
+                        end
+                    else
+                        % 1=ExpC, 2=ExpD, 3=ExpA, 4=ExpB
+                        MRS_struct.fids.ON_OFF = repmat([0 0 1 1; 1 0 1 0], [1 size(MRS_struct.fids.data,2)/4]);
                     end
                     
                 case 'Siemens_twix'
-                    if all(ismember(MRS_struct.p.target,{'GABAGlx','GSH'})) || all(ismember(MRS_struct.p.target,{'GABA','GSH'})) || all(ismember(MRS_struct.p.target,{'Glx','GSH'}))
-                        % 1=ExpB, 2=ExpD, 3=ExpC, 4=ExpA (MM: 181210)
-                        MRS_struct.fids.ON_OFF = repmat([1 0 0 1; 0 0 1 1], [1 size(MRS_struct.fids.data,2)/4]);
-                    elseif all(ismember(MRS_struct.p.target,{'GSH','Lac'}))
-                        % This has not been tested with universal sequence -- 03142018 MGSaleh
-                        MRS_struct.fids.ON_OFF = repmat([0 1 1 0; 1 1 0 0], [1 size(MRS_struct.fids.data,2)/4]);
-                    elseif all(ismember(MRS_struct.p.target,{'EtOH','GABA','GSH'}))
-                        % 1=A, 2=D, 3=B, 4=?
-                        MRS_struct.fids.ON_OFF = repmat([1 0 1 0; 1 0 0 1; 0 0 1 1], [1 size(MRS_struct.fids.data,2)/4]);
+                    if ~MRS_struct.p.HERCULES
+                        if all(ismember(MRS_struct.p.target,{'GABAGlx','GSH'})) || all(ismember(MRS_struct.p.target,{'GABA','GSH'})) || all(ismember(MRS_struct.p.target,{'Glx','GSH'}))
+                            % 1=ExpB, 2=ExpD, 3=ExpC, 4=ExpA (MM: 181210)
+                            MRS_struct.fids.ON_OFF = repmat([1 0 0 1; 0 0 1 1], [1 size(MRS_struct.fids.data,2)/4]);
+                        elseif all(ismember(MRS_struct.p.target,{'GSH','Lac'}))
+                            % This has not been tested with universal sequence -- 03142018 MGSaleh
+                            MRS_struct.fids.ON_OFF = repmat([0 1 1 0; 1 1 0 0], [1 size(MRS_struct.fids.data,2)/4]);
+                        elseif all(ismember(MRS_struct.p.target,{'EtOH','GABA','GSH'}))
+                            % 1=A, 2=D, 3=B, 4=?
+                            MRS_struct.fids.ON_OFF = repmat([1 0 1 0; 1 0 0 1; 0 0 1 1], [1 size(MRS_struct.fids.data,2)/4]);
+                        end
+                    else
+                        % 1=ExpA, 2=ExpB, 3=ExpC, 4=ExpD
+                        MRS_struct.fids.ON_OFF = repmat([1 1 0 0; 1 0 1 0], [1 size(MRS_struct.fids.data,2)/4]);
                     end
                     
             end

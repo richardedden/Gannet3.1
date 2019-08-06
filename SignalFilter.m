@@ -1,58 +1,5 @@
-function out = SignalFilter(in, r_flag, q_flag, MRS_struct)
-% Based on: Cobas, J.C., Bernstein, M.A., Martín-Pastor, M., Tahoces, P.G.,
-% 2006. A new general-purpose fully automatic baseline-correction procedure
-% for 1D and 2D NMR data. J. Magn. Reson. 183, 145-51.
+function out = SignalFilter(in, lipid_flag, water_flag, MRS_struct)
 
-showPlots = 0;
-
-[z.real, z.imag] = BaselineModeling(in, r_flag, q_flag, MRS_struct);
-
-if showPlots == 1
-    
-    ii = MRS_struct.ii;
-    freqRange = MRS_struct.p.sw(ii)/MRS_struct.p.LarmorFreq(ii);
-    freq = (MRS_struct.p.npoints(ii) + 1 - (1:MRS_struct.p.npoints(ii))) / MRS_struct.p.npoints(ii) * freqRange + 4.68 - freqRange/2;
-    
-    H = figure(77);
-    d.w = 0.5;
-    d.h = 0.65;
-    d.l = (1-d.w)/2;
-    d.b = (1-d.h)/2;
-    set(H,'Color', 'w', 'Units', 'Normalized', 'OuterPosition', [d.l d.b d.w d.h]);
-    
-    subplot(2,2,1); cla;
-    plot(freq, real(in), 'k');
-    set(gca, 'XDir', 'reverse', 'XLim', [0 6], 'Box', 'off');
-    hold on;
-    plot(freq, z.real, 'r');
-    set(gca, 'XDir', 'reverse', 'XLim', [0 6], 'Box', 'off');
-    
-    subplot(2,2,2); cla;
-    plot(freq, imag(in), 'k');
-    set(gca, 'XDir', 'reverse', 'XLim', [0 6], 'Box', 'off');
-    hold on;
-    plot(freq, z.imag, 'r');
-    set(gca, 'XDir', 'reverse', 'XLim', [0 6], 'Box', 'off');
-    
-    subplot(2,2,3); cla;
-    plot(freq, real(in) - z.real, 'k');
-    set(gca, 'XDir', 'reverse', 'XLim', [0 6], 'Box', 'off');
-    
-    subplot(2,2,4); cla;
-    plot(freq, imag(in) - z.imag, 'k');
-    set(gca, 'XDir', 'reverse', 'XLim', [0 6], 'Box', 'off');
-    
-    drawnow;
-    %pause(0.5);
-    
-end
-
-out = ifft(fftshift(complex(real(in) - z.real, imag(in) - z.imag)));
-
-end
-
-
-function [z_real, z_imag] = BaselineModeling(y, r_flag, q_flag, MRS_struct)
 % Based on:
 % Golotvin & Williams, 2000. Improved baseline recognition
 %   and modeling of FT NMR spectra. J. Magn. Reson. 146, 122-125
@@ -60,13 +7,38 @@ function [z_real, z_imag] = BaselineModeling(y, r_flag, q_flag, MRS_struct)
 %   baseline-correction procedure for 1D and 2D NMR data. J. Magn. Reson.
 %   183, 145-151
 
+z = BaselineModeling(in, lipid_flag, water_flag, MRS_struct);
+
+ii = MRS_struct.ii;
+freqRange = MRS_struct.p.sw(ii)/MRS_struct.p.LarmorFreq(ii);
+freq = (MRS_struct.p.npoints(ii) + 1 - (1:MRS_struct.p.npoints(ii))) / MRS_struct.p.npoints(ii) * freqRange + 4.68 - freqRange/2;
+waterLim = freq <= 5.5 & freq >= 3.6;
+noiseLim = freq <= 11 & freq >= 10;
+
+y.real = real(in) - z.real;
+y.imag = imag(in) - z.imag;
+if water_flag % some residual water may remain so replace with noise
+    rng('shuffle');
+    noise.real = datasample(y.real(noiseLim), sum(waterLim), 'Replace', true);
+    noise.imag = datasample(y.imag(noiseLim), sum(waterLim), 'Replace', true);
+    y.real(waterLim) = noise.real;
+    y.imag(waterLim) = noise.imag;
+end
+
+out = ifft(fftshift(complex(y.real, y.imag)));
+
+end
+
+
+function z = BaselineModeling(y, lipid_flag, water_flag, MRS_struct)
+
 % Power spectrum of first-derivative of signal calculated by CWT
-Wy = abs(cwt(real(y), 10, 'haar')).^2;
+Wy = abs(cwt2(real(y), 10)).^2;
 
 ii = MRS_struct.ii;
 freqRange = MRS_struct.p.sw(ii)/MRS_struct.p.LarmorFreq(ii);
 freq = (length(Wy) + 1 - (1:length(Wy))) / length(Wy) * freqRange + 4.68 - freqRange/2;
-noiseLim = freq <= 12 & freq >= 10;
+noiseLim = freq <= 11 & freq >= 10;
 
 sigma = std(Wy(noiseLim));
 
@@ -88,38 +60,94 @@ while 1
     w = w + 1;
 end
 
-% Include lipids in baseline estimate and water, as appropriate
-if r_flag
-    lipidLim = freq <= 1.85 & freq >= -2;
+% Include lipids and water in baseline estimate, as appropriate
+lipidLim = freq <= 1.85 & freq >= -2;
+waterLim = find(freq <= 5.5 & freq >= 3.6);
+if lipid_flag
     baseline(lipidLim) = Wy(lipidLim);
 end
-if q_flag
-    waterLim = freq <= 5.5 & freq >= 4.25;
+if water_flag
     baseline(waterLim) = Wy(waterLim);
 end
 
-z_real = real(y);
-z_real(baseline == 0) = 0;
-if r_flag
-    lipids = whittaker(z_real(lipidLim), 2, 10);
+z.real = real(y);
+z.real(baseline == 0) = 0;
+if lipid_flag
+    z_lipids = whittaker(z.real(lipidLim), 2, 10);
 end
-if q_flag
-    water = whittaker(z_real(waterLim), 2, 0.2);
+if water_flag
+    z_water = whittaker(z.real(waterLim), 2, 0.2);
 end
-z_real = whittaker(z_real, 2, 1e3);
-if r_flag
-    z_real(lipidLim) = lipids;
+z.real = whittaker(z.real, 2, 1e3);
+if lipid_flag
+    z.real(lipidLim) = z_lipids;
 end
-if q_flag
-    z_real(waterLim) = water;
+if water_flag
+    z.real(waterLim) = z_water;
 end
 
-z_imag = -imag(hilbert(z_real));
+z.imag = -imag(hilbert(z.real));
+
+end
+
+
+function Wy = cwt2(y, a)
+
+precis = 10;
+coef = sqrt(2)^precis;
+pas  = 1/2^precis;
+
+lo    = [sqrt(2)*0.5 sqrt(2)*0.5];
+hi    = lo .* [1 -1];
+nbpts = (length(lo)-1)/pas+2;
+
+psi = coef*upcoef2(lo,hi,precis);
+psi = [0 psi 0];
+x = linspace(0,(nbpts-1)*pas,nbpts);
+
+step = x(2) - x(1);
+wav = cumsum(psi)*step;
+x = x - x(1);
+
+y = y(:)';
+j = 1+floor((0:a*x(end))/(a*step));
+if length(j) == 1
+    j = [1 1];
+end
+f = fliplr(wav(j));
+
+Wy = -sqrt(a) * keepVec(diff(conv2(y,f,'full')),length(y));
+
+    function out = upcoef2(lo,hi,precis)
+        out = hi;
+        for k = 2:precis
+            out = conv2(dyadup2(out),lo,'full');
+        end
+        function out = dyadup2(in)
+            z = zeros(1,length(in));
+            out = [in; z];
+            out(end) = [];
+            out = out(:)';
+        end
+    end
+
+    function out = keepVec(in,len)
+        out = in;
+        ok = len >= 0 && len < length(in);
+        if ~ok
+            return
+        end
+        d     = (length(in)-len)/2;
+        first = 1+floor(d);
+        last  = length(in)-ceil(d);
+        out   = in(first:last);
+    end
 
 end
 
 
 function z = whittaker(y, d, lambda)
+
 % Code taken from: Eilers, 2003. A perfect smoother. Anal. Chem. 75,
 % 3631-3636
 
