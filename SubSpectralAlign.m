@@ -176,7 +176,7 @@ if MRS_struct.p.HERMES
     [flatdata, data] = FlattenData(data);
     
     % Cho
-    freqLim(3,:) = freq <= 3.2+0.15 & freq >= 3.2-0.15;
+    freqLim(3,:) = freq <= 3.2+0.09 & freq >= 3.2-0.09;
     [~,i] = max(abs(data(freqLim(3,:), subSpecInd([3 1]))));
     freq2 = freq(freqLim(3,:));
     maxFreq = freq2(i);
