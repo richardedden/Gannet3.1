@@ -176,7 +176,7 @@ if MRS_struct.p.HERMES
     [flatdata, data] = FlattenData(data);
     
     % Cho
-    freqLim(3,:) = freq <= 3.2+0.09 & freq >= 3.2-0.09;
+    freqLim(3,:) = freq <= 3.2+0.15 & freq >= 3.2-0.15;
     [~,i] = max(abs(data(freqLim(3,:), subSpecInd([3 1]))));
     freq2 = freq(freqLim(3,:));
     maxFreq = freq2(i);
@@ -242,7 +242,7 @@ function fids = PhaseCorrection(data, fids, freq, ind, MRS_struct)
 OFF = data(:,ind);
 ii = MRS_struct.ii;
 
-freqLim = freq <= 3.02+0.2 & freq >= 3.02-0.2;
+freqLim = freq <= 3.02+0.15 & freq >= 3.02-0.15;
 [~,i] = max(abs(OFF(freqLim)));
 freq2 = freq(freqLim);
 maxFreq = freq2(i);

@@ -199,7 +199,7 @@ while SpecRegLoop > -1
         
         if ~MRS_struct.p.phantom
             % Global frequency shift
-            CrFreqRange = MRS_struct.spec.freq <= 3.02+0.2 & MRS_struct.spec.freq >= 3.02-0.2;
+            CrFreqRange = MRS_struct.spec.freq <= 3.02+0.15 & MRS_struct.spec.freq >= 3.02-0.15;
             [~,FrameMaxPos] = max(abs(mean(real(AllFramesFTrealign(CrFreqRange,:)),2)));
             freq = MRS_struct.spec.freq(CrFreqRange);
             CrFreqShift = freq(FrameMaxPos);
