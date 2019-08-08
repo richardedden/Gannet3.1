@@ -2,7 +2,9 @@ function MRS_struct = GannetCoRegister(MRS_struct, nii_name)
 
 % Coregistration of MRS voxel volumes to imaging datasets, based on headers.
 
-MRS_struct.version.coreg = '190503';
+MRS_struct.version.coreg = '190808';
+
+warning('off'); % temporarily suppress annoying warning messages
 
 % First check if SPM12 is installed and on the search path
 spmversion = fileparts(which('spm'));
@@ -221,6 +223,8 @@ for ii = 1:numscans
     end
     
 end
+
+warning('on'); % turn warnings back on
 
 
 
