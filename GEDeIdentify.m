@@ -237,7 +237,7 @@ else
         end
         
         switch num2str(rdbm_rev_num)
-            case {'14.3','16','20.007','24'}
+            case {'14.3','16','20.006','20.007','24'}
                 rdb_hdr_off_image     = 377;
                 rdb_hdr_off_data      = 368;
                 rdb_hdr_off_exam      = 375;

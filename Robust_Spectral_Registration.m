@@ -115,20 +115,24 @@ while SpecRegLoop > -1
     flatdata(:,2,:) = imag(DataToAlign(1:tMax,SubspecToAlign == SpecRegLoop));
     
     % Determine optimal iteration order by calculating a similarity metric (mean squared error)
-    D = zeros(size(flatdata,3));
-    ind = find(SubspecToAlign == SpecRegLoop);
-    for jj = 1:size(flatdata,3)
-        for kk = 1:size(flatdata,3)
-            tmp = sum((real(DataToAlign(1:tMax,ind(jj))) - real(DataToAlign(1:tMax,ind(kk)))).^2) / tMax;
-            if tmp == 0
-                D(jj,kk) = NaN;
-            else
-                D(jj,kk) = tmp;
+    if strcmp(MRS_struct.p.vendor,'Siemens_rda') % if .rda data, this subroutine doesn't apply
+        alignOrd = 1;
+    else
+        D = zeros(size(flatdata,3));
+        ind = find(SubspecToAlign == SpecRegLoop);
+        for jj = 1:size(flatdata,3)
+            for kk = 1:size(flatdata,3)
+                tmp = sum((real(DataToAlign(1:tMax,ind(jj))) - real(DataToAlign(1:tMax,ind(kk)))).^2) / tMax;
+                if tmp == 0
+                    D(jj,kk) = NaN;
+                else
+                    D(jj,kk) = tmp;
+                end
             end
         end
+        d = nanmedian(D);
+        [~,alignOrd] = sort(d);
     end
-    d = nanmedian(D);
-    [~,alignOrd] = sort(d);
     
     % Set initial reference transient based on similarity index
     target = squeeze(flatdata(:,:,alignOrd(1)));

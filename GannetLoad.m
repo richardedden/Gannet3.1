@@ -497,7 +497,8 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
                 
                 for jj = 1:length(MRS_struct.p.target)
                     
-                    if strcmp(MRS_struct.p.AlignTo,'RobustSpecReg') % determine weights for weighted averaging (MM: 190423)
+                    % Determine weights for weighted averaging (MM: 190423)
+                    if strcmp(MRS_struct.p.AlignTo,'RobustSpecReg') && ~strcmp(MRS_struct.p.vendor,'Siemens_rda') % if .rda data, use conventional averaging
                         
                         ON_inds  = find(MRS_struct.fids.ON_OFF(jj,:) == 1);
                         OFF_inds = find(MRS_struct.fids.ON_OFF(jj,:) == 0);
@@ -542,6 +543,9 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
                         
                     else
                         
+                        if strcmp(MRS_struct.p.vendor,'Siemens_rda')
+                            MRS_struct.out.reject(:,ii) = zeros(size(AllFramesFTrealign,2),1);
+                        end
                         OFF = mean(AllFramesFTrealign(:,(MRS_struct.fids.ON_OFF(jj,:)==0)' & MRS_struct.out.reject(:,ii)==0),2);
                         ON  = mean(AllFramesFTrealign(:,(MRS_struct.fids.ON_OFF(jj,:)==1)' & MRS_struct.out.reject(:,ii)==0),2);
                         
@@ -554,7 +558,7 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
                     MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{jj}).diff_noalign(ii,:) = (mean(AllFramesFT(:,MRS_struct.fids.ON_OFF(jj,:)==1),2) - mean(AllFramesFT(:,MRS_struct.fids.ON_OFF(jj,:)==0),2))/2;
                     
                     % Edit-OFF,-OFF spectrum (for Cr referencing)
-                    if strcmp(MRS_struct.p.AlignTo,'RobustSpecReg') % determine weights for weighted averaging (MM: 190423)
+                    if strcmp(MRS_struct.p.AlignTo,'RobustSpecReg') && ~strcmp(MRS_struct.p.vendor,'Siemens_rda') % if .rda data, use conventional averaging
                         
                         OFF_OFF_inds = find(all(MRS_struct.fids.ON_OFF'==0,2));
                         OFF_OFFs = ifft(ifftshift(AllFramesFTrealign(:,OFF_OFF_inds),1),[],1);
@@ -580,6 +584,9 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
                         
                     else
                         
+                        if strcmp(MRS_struct.p.vendor,'Siemens_rda')
+                            MRS_struct.out.reject(:,ii) = zeros(size(AllFramesFTrealign,2),1);
+                        end
                         OFF_OFF = mean(AllFramesFTrealign(:,all(MRS_struct.fids.ON_OFF'==0,2) & MRS_struct.out.reject(:,ii)==0),2);
                         
                     end
@@ -590,7 +597,7 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
                 
             else
                 
-                if strcmp(MRS_struct.p.AlignTo,'RobustSpecReg')
+                if strcmp(MRS_struct.p.AlignTo,'RobustSpecReg') && ~strcmp(MRS_struct.p.vendor,'Siemens_rda') % if .rda data, use conventional averaging
                     
                     % Determine weights for weighted averaging (MM: 190423)
                     ON_inds  = find(MRS_struct.fids.ON_OFF == 1);
@@ -627,10 +634,13 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
                     MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).off(ii,:) = sum(w .* AllFramesFTrealign(:,MRS_struct.fids.ON_OFF==0),2);
                     MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).on(ii,:)  = sum(w .* AllFramesFTrealign(:,MRS_struct.fids.ON_OFF==1),2);
                     
-                    MRS_struct.out.reject(:,ii) = zeros(size(AllFramesFTrealign,2),1);
+                    MRS_struct.out.reject(:,ii) = zeros(1,size(AllFramesFTrealign,2));
                     
                 else
                     
+                    if strcmp(MRS_struct.p.vendor,'Siemens_rda')
+                        MRS_struct.out.reject(:,ii) = zeros(size(AllFramesFTrealign,2),1);
+                    end
                     MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).off(ii,:) = mean(AllFramesFTrealign(:,(MRS_struct.fids.ON_OFF==0)' & MRS_struct.out.reject(:,ii)==0), 2);
                     MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).on(ii,:)  = mean(AllFramesFTrealign(:,(MRS_struct.fids.ON_OFF==1)' & MRS_struct.out.reject(:,ii)==0), 2);
                     

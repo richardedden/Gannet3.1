@@ -30,7 +30,7 @@ switch num2str(MRS_struct.p.GE.rdbm_rev_num(ii))
         tlhc                = 133;
         trhc                = 136;
         brhc                = 139;
-    case {'20.007','24'}
+    case {'20.006','20.007','24'}
         rdb_hdr_off_image   = 377;
         rdb_hdr_ps_mps_freq = 107;
         image_user8         = 98;

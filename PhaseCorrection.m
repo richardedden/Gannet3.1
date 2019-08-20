@@ -36,31 +36,35 @@ w = cell(1,n);
 data = complex(zeros(size(fids,1),n));
 time = (0:(MRS_struct.p.npoints(ii)-1))'/MRS_struct.p.sw(ii);
 tMax = find(time <= 0.1,1,'last');
-for jj = 1:n
-    if MRS_struct.p.HERMES
-        ind = jj:n:size(fids,2);
-    else
-        ind = find(MRS_struct.fids.ON_OFF == abs(jj-2));
-    end
-    for kk = 1:size(fids,2)/n
-        for ll = 1:size(fids,2)/n
-            tmp = sum((real(fids(1:tMax,ind(kk))) - real(fids(1:tMax,ind(ll)))).^2) / 200;
-            if tmp == 0
-                D(kk,ll) = NaN;
-            else
-                D(kk,ll) = tmp;
+if strcmp(MRS_struct.p.vendor,'Siemens_rda') % if .rda data, use conventional averaging
+    data = fids;
+else
+    for jj = 1:n
+        if MRS_struct.p.HERMES
+            ind = jj:n:size(fids,2);
+        else
+            ind = find(MRS_struct.fids.ON_OFF == abs(jj-2));
+        end
+        for kk = 1:size(fids,2)/n
+            for ll = 1:size(fids,2)/n
+                tmp = sum((real(fids(1:tMax,ind(kk))) - real(fids(1:tMax,ind(ll)))).^2) / 200;
+                if tmp == 0
+                    D(kk,ll) = NaN;
+                else
+                    D(kk,ll) = tmp;
+                end
             end
         end
-    end
-    d = nanmean(D);
-    w{jj} = 1./d.^2;
-    w{jj} = w{jj}/sum(w{jj});
-    w{jj} = repmat(w{jj}, [size(fids,1) 1]);
-    if water_flag
-        dataLim = ceil(length(ind)/3);
-        data(:,jj) = sum(w{jj}(:,1:dataLim) .* fids(:,ind(1:dataLim)),2);
-    else
-        data(:,jj) = sum(w{jj} .* fids(:,ind),2);
+        d = nanmean(D);
+        w{jj} = 1./d.^2;
+        w{jj} = w{jj}/sum(w{jj});
+        w{jj} = repmat(w{jj}, [size(fids,1) 1]);
+        if water_flag
+            dataLim = ceil(length(ind)/3);
+            data(:,jj) = sum(w{jj}(:,1:dataLim) .* fids(:,ind(1:dataLim)),2);
+        else
+            data(:,jj) = sum(w{jj} .* fids(:,ind),2);
+        end
     end
 end
 
@@ -89,17 +93,21 @@ x0 = [Area Width maxFreq 0 Baseline 0 1] .* [1 2*MRS_struct.p.LarmorFreq(ii) MRS
 ModelParamChoCr = FitChoCr(freq(freqLim), SUM_ChoCr, x0, MRS_struct.p.LarmorFreq(ii));
 fids = fids * exp(1i*pi/180*ModelParamChoCr(4));
 
-for jj = 1:n
-    if MRS_struct.p.HERMES
-        ind = jj:4:size(fids,2);
-    else
-        ind = find(MRS_struct.fids.ON_OFF == abs(jj-2));
-    end
-    if water_flag
-        dataLim = ceil(length(ind)/3);
-        data(:,jj) = sum(w{jj}(:,1:dataLim) .* fids(:,ind(1:dataLim)),2);
-    else
-        data(:,jj) = sum(w{jj} .* fids(:,ind),2);
+if strcmp(MRS_struct.p.vendor,'Siemens_rda') % if .rda data, use conventional averaging
+    data = fids;
+else
+    for jj = 1:n
+        if MRS_struct.p.HERMES
+            ind = jj:4:size(fids,2);
+        else
+            ind = find(MRS_struct.fids.ON_OFF == abs(jj-2));
+        end
+        if water_flag
+            dataLim = ceil(length(ind)/3);
+            data(:,jj) = sum(w{jj}(:,1:dataLim) .* fids(:,ind(1:dataLim)),2);
+        else
+            data(:,jj) = sum(w{jj} .* fids(:,ind),2);
+        end
     end
 end
 
