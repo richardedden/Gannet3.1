@@ -213,11 +213,17 @@ for ii = 1:numscans
         text(0.5, text_pos-0.72, MRS_struct.version.segment,  'FontName', 'Arial', 'VerticalAlignment', 'top', 'FontSize', 13);
         
         % Voxel segmentation (MM: 180807)
-        img_t     = flipud(voxel2world_space(spm_vol(anatimage), MRS_struct.p.voxoff(ii,:)));
-        vox_t     = flipud(voxel2world_space(voxmaskvol, MRS_struct.p.voxoff(ii,:)));
-        vox_t_GM  = flipud(voxel2world_space(O_GMvox, MRS_struct.p.voxoff(ii,:)));
-        vox_t_WM  = flipud(voxel2world_space(O_WMvox, MRS_struct.p.voxoff(ii,:)));
-        vox_t_CSF = flipud(voxel2world_space(O_CSFvox, MRS_struct.p.voxoff(ii,:)));
+        if isfield(MRS_struct.p,'TablePosition')
+            VoxOffs = MRS_struct.p.voxoff(ii,:) + MRS_struct.p.TablePosition(ii,:);
+        else
+            VoxOffs = MRS_struct.p.voxoff(ii,:);
+        end
+        
+        img_t     = flipud(voxel2world_space(spm_vol(anatimage), VoxOffs));
+        vox_t     = flipud(voxel2world_space(voxmaskvol, VoxOffs));
+        vox_t_GM  = flipud(voxel2world_space(O_GMvox, VoxOffs));
+        vox_t_WM  = flipud(voxel2world_space(O_WMvox, VoxOffs));
+        vox_t_CSF = flipud(voxel2world_space(O_CSFvox, VoxOffs));
         img_t = img_t/MRS_struct.mask.(vox{kk}).T1max(ii);
         img_montage = [img_t+0.175*vox_t, img_t+0.21*vox_t_GM, img_t+0.25*vox_t_WM, img_t+0.4*vox_t_CSF];
         MRS_struct.mask.(vox{kk}).img_montage{ii} = img_montage;
