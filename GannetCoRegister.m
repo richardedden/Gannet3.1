@@ -4,7 +4,7 @@ function MRS_struct = GannetCoRegister(MRS_struct, nii_name)
 
 MRS_struct.version.coreg = '190808';
 
-warning('off'); % temporarily suppress annoying warning messages
+warning('off'); % temporarily suppress warning messages
 
 % First check if SPM12 is installed and on the search path
 spmversion = fileparts(which('spm'));

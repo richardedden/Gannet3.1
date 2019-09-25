@@ -33,7 +33,7 @@ DataToAlign = complex(zeros(size(MRS_struct.fids.data)));
 lsqnonlinopts = optimoptions(@lsqnonlin);
 lsqnonlinopts = optimoptions(lsqnonlinopts,'Algorithm','levenberg-marquardt','Display','off');
 
-% Automatic lipid/unstable residual water removal
+% Automatic unstable lipid/residual water removal
 freqRange = MRS_struct.p.sw(ii)/MRS_struct.p.LarmorFreq(ii);
 freq = (MRS_struct.p.npoints(ii) + 1 - (1:MRS_struct.p.npoints(ii))) / MRS_struct.p.npoints(ii) * freqRange + 4.68 - freqRange/2;
 waterLim = freq <= 4.68 + 0.25 & freq >= 4.68 - 0.25;
@@ -76,11 +76,11 @@ if r > r_threshold || q > q_threshold
     reverseStr = '';
     for jj = 1:size(MRS_struct.fids.data,2)
         if lipid_flag && ~water_flag
-            msg = sprintf('\nLipid contamination detected. Applying lipid filter to transient: %d\n', jj);
+            msg = sprintf('\nUnstable lipid contamination detected. Applying lipid filter to transient: %d\n', jj);
         elseif ~lipid_flag && water_flag
             msg = sprintf('\nUnstable residual water detected. Applying residual water filter to transient: %d\n', jj);
         elseif lipid_flag && water_flag
-            msg = sprintf('\nLipid contamination and unstable residual water detected. Applying lipid and residual water filters to transient: %d\n', jj);
+            msg = sprintf('\nUnstable lipid contamination and residual water detected. Applying lipid and residual water filters to transient: %d\n', jj);
         end
         fprintf([reverseStr, msg]);
         reverseStr = repmat(sprintf('\b'), 1, length(msg));
@@ -103,9 +103,9 @@ while SpecRegLoop > -1
     noise = 2*std(signal(ceil(0.75*size(signal,1)):end,:));
     SNR = signal ./ repmat(noise, [size(DataToAlign,1) 1]);
     SNR = abs(diff(mean(SNR,2)));
-    SNR = SNR(time <= 0.2);
+    SNR = SNR(time <= 0.2); % use no more than 200 ms of data
     tMax = find(SNR > 0.5,1,'last');
-    if isempty(tMax) || tMax < find(time <= 0.1,1,'last')
+    if isempty(tMax) || tMax < find(time <= 0.1,1,'last') % use at least 100 ms of data
         tMax = find(time <= 0.1,1,'last');
     end
     
@@ -114,7 +114,7 @@ while SpecRegLoop > -1
     flatdata(:,1,:) = real(DataToAlign(1:tMax,SubspecToAlign == SpecRegLoop));
     flatdata(:,2,:) = imag(DataToAlign(1:tMax,SubspecToAlign == SpecRegLoop));
     
-    % Determine optimal iteration order by calculating a similarity metric (mean squared error)
+    % Determine optimal alignment order by calculating a similarity metric (mean squared error)
     if strcmp(MRS_struct.p.vendor,'Siemens_rda') % if .rda data, this subroutine doesn't apply
         alignOrd = 1;
     else
@@ -194,7 +194,7 @@ while SpecRegLoop > -1
     
     if SpecRegLoop == 0
         
-        % Align sub-spectra
+        % Align subspectra
         MRS_struct.fids.data_align = SubSpectralAlign(MRS_struct.fids.data_align, water_flag, MRS_struct);
         
         % Line-broadening, zero-filling and FFT

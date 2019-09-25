@@ -9,7 +9,7 @@ function MRS_struct = GannetSegment(MRS_struct)
 
 MRS_struct.version.segment = '190503';
 
-warning('off'); % temporarily suppress annoying warning messages
+warning('off'); % temporarily suppress warning messages
 
 % First check if SPM12 is installed and on the search path
 spmversion = fileparts(which('spm'));
@@ -319,7 +319,7 @@ for ii = 1:numscans
     
 end
 
-warning('off'); % turn warnings back on
+warning('on'); % turn warnings back on
 
 end
 

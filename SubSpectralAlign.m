@@ -3,7 +3,10 @@ function fids = SubSpectralAlign(fids, water_flag, MRS_struct)
 ii = MRS_struct.ii;
 freqRange = MRS_struct.p.sw(ii)/MRS_struct.p.LarmorFreq(ii);
 freq = (size(fids,1) + 1 - (1:size(fids,1))) / size(fids,1) * freqRange + 4.68 - freqRange/2;
+time = (0:(MRS_struct.p.npoints(ii)-1))'/MRS_struct.p.sw(ii);
+tMax = find(time <= 0.1,1,'last');
 
+% Pre-allocate memory
 if MRS_struct.p.HERMES
     n = 4;
 else
@@ -13,8 +16,12 @@ D = zeros(size(fids,2)/n);
 w = cell(1,n);
 data = complex(zeros(size(fids,1),n));
 dataLim = [];
-time = (0:(MRS_struct.p.npoints(ii)-1))'/MRS_struct.p.sw(ii);
-tMax = find(time <= 0.1,1,'last');
+
+% Optimization options
+lsqnonlinopts = optimoptions(@lsqnonlin);
+lsqnonlinopts = optimoptions(lsqnonlinopts,'Algorithm','levenberg-marquardt','Display','off');
+
+% Use weighted averaging to average subspectra
 if strcmp(MRS_struct.p.vendor,'Siemens_rda') % if .rda data, use conventional averaging
     data = fids;
 else
@@ -49,6 +56,7 @@ end
 clear tmp
 [~, data] = FlattenData(data);
 
+% Set HERMES subexperiment indices (A, B, C, D) 
 if MRS_struct.p.HERMES
     if ~MRS_struct.p.HERCULES
         if length(MRS_struct.p.target) == 2 && all(strcmp(MRS_struct.p.target,{'GABAGlx','GSH'}))
@@ -78,12 +86,15 @@ if MRS_struct.p.HERMES
     end
 end
 
+% Phase-correct one subspectrum so all remaining subspectra are in the same phase
 if MRS_struct.p.HERMES
     ind = subSpecInd(4);
 else
     ind = 2;
 end
 fids = PhaseCorrection(data, fids, freq, ind, MRS_struct);
+
+% Average subspectra again
 if strcmp(MRS_struct.p.vendor,'Siemens_rda') % if .rda data, use conventional averaging
     data = fids;
 else
@@ -91,6 +102,7 @@ else
 end
 [flatdata, data] = FlattenData(data);
 
+% Parameters for optimization
 if MRS_struct.p.HERMES
     
     % Water
@@ -153,10 +165,9 @@ else
     
 end
 
-lsqnonlinopts = optimoptions(@lsqnonlin);
-lsqnonlinopts = optimoptions(lsqnonlinopts,'Algorithm','levenberg-marquardt','Display','off');
 t = 0:(1/MRS_struct.p.sw(ii)):(size(fids,1)-1)*(1/MRS_struct.p.sw(ii));
 
+% Align subspectra to each other
 if MRS_struct.p.HERMES
     
     % Water
@@ -212,6 +223,7 @@ else
     
 end
 
+% Apply frequency and phase corrections to subspectra
 if MRS_struct.p.HERMES
     ind1 = subSpecInd(2):4:size(fids,2);
     ind2 = subSpecInd(3):4:size(fids,2);
