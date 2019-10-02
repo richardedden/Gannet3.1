@@ -14,7 +14,6 @@ Gannet runs in MATLAB (we recommend using the latest release if possible). Addit
 * Optimization
 * Signal Processing
 * Statistics and Machine Learning
-* Wavelet
 
 To run the voxel co-registration and structural image segmentation modules, [SPM12](https://www.fil.ion.ucl.ac.uk/spm/software/spm12/) must be installed.
 
@@ -39,13 +38,14 @@ For bug reporting, contribution requests and/or queries, please contact us at: g
 
 ## Versioning
 
-Semantic versionining is used when updates are made to Gannet using the style 3.1.x. Versioning is also conducted on a module-specific basis using the style YYMMDD. That is, each Gannet module has its own release version.
+Semantic versioning is used when updates are made to Gannet using the style 3.1.x. Versioning is also conducted on a module-specific basis using the style YYMMDD. That is, each Gannet module has its own release version.
 
-## Authors
+## Developers
 
 * **Richard Edden** (The Johns Hopkins University)
 * **Mark Mikkelsen** (The Johns Hopkins University)
 * **Georg Oeltzschner** (The Johns Hopkins University)
+* **Sofie Tapper** (The Johns Hopkins University)
 * **Muhammad Saleh** (The Johns Hopkins University)
 * **C. John Evans** (Cardiff University)
 * **Ashley Harris** (University of Calgary)
@@ -53,10 +53,12 @@ Semantic versionining is used when updates are made to Gannet using the style 3.
 
 ## License
 
-This software is open-source and does not have a specific license, but should you publish material that made use of Gannet in some way please cite the following publications:
+This software is open-source and does not have a specific license, but should you publish material that made use of Gannet please cite the following publications (as appropriate):
 
 * Edden RAE, Puts NAJ, Harris AD, Barker PB, Evans CJ. Gannet: A batch-processing tool for the quantitative analysis of gamma-aminobutyric acid-edited MR spectroscopy spectra. J. Magn. Reson. Imaging 2014;40:1445–1452. doi: [10.1002/jmri.24478](http://doi.wiley.com/10.1002/jmri.24478)
-* Harris AD, Puts NAJ, Edden RAE. Tissue correction for GABA-edited MRS: Considerations of voxel composition, tissue segmentation, and tissue relaxations. J. Magn. Reson. Imaging 2015;42:1431–1440. doi: [10.1002/jmri.24903](http://doi.wiley.com/10.1002/jmri.24903) (if you report tissue-corrected, water-referenced measurements)
+* Ashburner J, Friston KJ. Unified segmentation. Neuroimage 2005;26:839–851 doi: [10.1016/j.neuroimage.2005.02.018](https://doi.org/10.1016/j.neuroimage.2005.02.018) (if you perform tissue segmentation)
+* Harris AD, Puts NAJ, Edden RAE. Tissue correction for GABA-edited MRS: Considerations of voxel composition, tissue segmentation, and tissue relaxations. J. Magn. Reson. Imaging 2015;42:1431–1440. doi: [10.1002/jmri.24903](http://doi.wiley.com/10.1002/jmri.24903) (if you report tissue-corrected, water-referenced measurements based on the Harris et al. method)
+* Gasparovic C, Song T, Devier D, et al. Use of tissue water as a concentration reference for proton spectroscopic imaging. Magn. Reson. Med. 2006;55:1219–1226 doi: [10.1002/mrm.20901](http://doi.wiley.com/10.1002/mrm.20901) (if you report tissue-corrected, water-referenced measurements based on the Gasparovic et al. method)
 
 ## Acknowledgments
 
