@@ -13,8 +13,8 @@ function MRS_struct = GannetLoad(varargin)
 %   6. Build GannetLoad output
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-MRS_struct.version.Gannet = '3.1.3';
-MRS_struct.version.load = '190806';
+MRS_struct.version.Gannet = '3.1.4';
+MRS_struct.version.load = '191003';
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   0. Check the file list for typos
@@ -433,7 +433,7 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
             MRS_struct.p.SpecResNominal(ii) = MRS_struct.p.sw(ii)/MRS_struct.p.ZeroFillTo(ii);
             MRS_struct.p.Tacq(ii) = 1/MRS_struct.p.SpecRes(ii);
             
-            % Frame-by-frame determination of frequency of residual water and Cr (if HERMES/HERCULES or GSH editing)
+            % Frame-by-frame determination of frequency of residual water or Cr (if HERMES/HERCULES or GSH editing)
             if MRS_struct.p.HERMES || any(strcmp(MRS_struct.p.target,'GSH'))
                 F0freqRange = MRS_struct.spec.freq - 3.02 >= -0.15 & MRS_struct.spec.freq - 3.02 <= 0.15;
             else
@@ -443,11 +443,6 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
             F0freqRange = MRS_struct.spec.freq(F0freqRange);
             MRS_struct.spec.F0freq(ii,:) = F0freqRange(FrameMaxPos);
             
-            F0freqRange = MRS_struct.spec.freq - 3.02 >= -0.15 & MRS_struct.spec.freq - 3.02 <= 0.15;
-            [~,FrameMaxPos] = max(abs(real(AllFramesFT(F0freqRange,:))),[],1);
-            F0freqRange = MRS_struct.spec.freq(F0freqRange);
-            MRS_struct.spec.F0freq2(ii,:) = F0freqRange(FrameMaxPos);
-            
             % Estimate average amount of F0 offset
             if MRS_struct.p.HERMES || any(strcmp(MRS_struct.p.target,'GSH'))
                 MRS_struct.out.AvgDeltaF0(ii) = mean(F0freqRange(FrameMaxPos) - 3.02);
@@ -456,6 +451,12 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
             else
                 MRS_struct.out.AvgDeltaF0(ii) = mean(F0freqRange(FrameMaxPos) - F0);
             end
+            
+            % Use frame-by-frame frequency of Cr for Robust_Spectral_Registration
+            F0freqRange = MRS_struct.spec.freq - 3.02 >= -0.15 & MRS_struct.spec.freq - 3.02 <= 0.15;
+            [~,FrameMaxPos] = max(abs(real(AllFramesFT(F0freqRange,:))),[],1);
+            F0freqRange = MRS_struct.spec.freq(F0freqRange);
+            MRS_struct.spec.F0freq2(ii,:) = F0freqRange(FrameMaxPos);
             
             % Frame-by-frame alignment
             switch MRS_struct.p.AlignTo
