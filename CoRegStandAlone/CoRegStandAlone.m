@@ -31,6 +31,7 @@ function MRS_struct = CoRegStandAlone(metabfile,niifile)
 %   
 %   History:
 %       2018-09-19: First version of the code.
+%       2019-10-24: Minor bug fix (line 44).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   1. Pre-initialise
@@ -40,6 +41,7 @@ MRS_struct.version.Gannet = '3.1.0';
 MRS_struct.version.load = '190529'; % set to date when final updates have been made
 MRS_struct.ii = 0;
 MRS_struct.metabfile = metabfile;
+MRS_struct.p.HERMES = 0;
 
 % Flags
 MRS_struct.p.mat = 1;       % Save results in *.mat output structure? (0 = NO, 1 = YES (default)).
