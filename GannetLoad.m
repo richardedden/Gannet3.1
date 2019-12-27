@@ -670,7 +670,7 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
                     MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{jj}).diff_noalign(ii,:) = fftshift(fft(MRS_struct.fids.(vox{kk}).(MRS_struct.p.target{jj}).diff_noalign(ii,:)));
                     
                     % MM (170703): Need to perform baseline correction on filtered data
-                    freqbounds = MRS_struct.spec.freq <= 10 & MRS_struct.spec.freq >= 9;
+                    freqbounds = MRS_struct.spec.freq <= 8 & MRS_struct.spec.freq >= 7;
                     baseMean_diff = mean(real(MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{jj}).diff(ii,freqbounds)));
                     baseMean_diffnoalign = mean(real(MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{jj}).diff_noalign(ii,freqbounds)));
                     
