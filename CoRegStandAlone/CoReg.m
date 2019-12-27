@@ -61,7 +61,7 @@ for ii = 1:numscans
                 fname = MRS_struct.metabfile{ii};
                 MRS_struct = GannetMask_SiemensRDA(fname, nii_name{ii}, MRS_struct, ii, vox, kk);
 
-            case {'Siemens_twix', 'Siemens_dicom'} 
+            case {'Siemens_twix', 'Siemens_dicom', 'dicom'} 
                 fname = MRS_struct.metabfile{ii};
                 MRS_struct = GannetMask_SiemensTWIX(fname, nii_name{ii}, MRS_struct, ii, vox, kk);
 
