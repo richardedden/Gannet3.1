@@ -1,8 +1,10 @@
 function MRS_struct = CoReg(MRS_struct, nii_name)
 
-%Coregistration of MRS voxel volumes to imaging datasets, based on headers.
+% Coregistration of MRS voxel volumes to imaging datasets, based on headers.
 
-MRS_struct.version.coreg = '190529';
+MRS_struct.version.coreg = '190808';
+
+warning('off'); % temporarily suppress warning messages
 
 % First check if SPM12 is installed and on the search path
 spmversion = fileparts(which('spm'));
@@ -192,17 +194,21 @@ for ii = 1:numscans
             fullpath = regexprep(fullpath, '/', '_');
         end
 
-        % MM (180112)
         [~,metabfile_nopath] = fileparts(MRS_struct.metabfile{ii});
+        
+        % Create output folder
+        if ~exist(fullfile(pwd, 'CoRegStandAlone_output'),'dir')
+            mkdir(fullfile(pwd, 'CoRegStandAlone_output'));
+        end
 
         % Save PDF output
         set(gcf,'PaperUnits','inches');
         set(gcf,'PaperSize',[11 8.5]);
         set(gcf,'PaperPosition',[0 0 11 8.5]);
         if strcmpi(MRS_struct.p.vendor,'Philips_data')
-            pdfname = fullfile('CoRegStandAlone_output', [fullpath '_' vox{kk} '_coreg.pdf']); % MM (180112)
+            pdfname = fullfile(pwd, 'CoRegStandAlone_output', [fullpath '_' vox{kk} '_coreg.pdf']);
         else
-            pdfname = fullfile('CoRegStandAlone_output', [metabfile_nopath '_' vox{kk} '_coreg.pdf']); % MM (180112)
+            pdfname = fullfile(pwd, 'CoRegStandAlone_output', [metabfile_nopath '_' vox{kk} '_coreg.pdf']);
         end
         saveas(gcf, pdfname);
         
@@ -211,6 +217,7 @@ for ii = 1:numscans
     
 end
 
+warning('on'); % turn warnings back on
 
 
 

@@ -1,15 +1,15 @@
 function MRS_struct = CoRegStandAlone(metabfile,niifile)
 % CoRegStandAlone(metabfile,niifile)
-%   Reads the relevant header information from MRS files, performs 
+%   Reads the relevant header information from MRS files, performs
 %   SPM-based co-registration to a 3D anatomical image in nifti (*.nii)
 %   format, and returns the tissue class fractions of gray matter, white
-%   matter, and cerebrospinal fluid in the MRS voxel. 
+%   matter, and cerebrospinal fluid in the MRS voxel.
 %
 %   Requires:
 %       - SPM 12 (https://www.fil.ion.ucl.ac.uk/spm/software/spm12/)
 %
 %   Input:
-%       metabfile - cell containing the path to an MRS data file in one of 
+%       metabfile - cell containing the path to an MRS data file in one of
 %                   the following formats:
 %                   Philips SDAT/SPAR, Siemens TWIX (*.dat), Siemens
 %                   RDA (*.rda), GE (.7), DICOM (*.ima, *.dcm)
@@ -20,15 +20,15 @@ function MRS_struct = CoRegStandAlone(metabfile,niifile)
 %       elements of the niifile cell, with matching order.
 %
 %   Example:
-%       MRS_struct = CoRegStandAlone({'MRS1.dat, 'MRS2.dat'}, {'nii.dat', 'nii.dat'})
-%                                       
+%       MRS_struct = CoRegStandAlone({'MRS1.dat', 'MRS2.dat'}, {'nii.dat', 'nii.dat'})
+%
 %       This example will co-register and segment two Siemens MRS voxels to
 %       the same structural.
 %
 %   Author:
 %       Dr. Georg Oeltzschner (Johns Hopkins University, 2018-09-19)
 %       goeltzs1@jhmi.edu
-%   
+%
 %   History:
 %       2018-09-19: First version of the code.
 %       2019-10-24: Minor bug fix (line 44).
@@ -37,15 +37,15 @@ function MRS_struct = CoRegStandAlone(metabfile,niifile)
 %   1. Pre-initialise
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-MRS_struct.version.Gannet = '3.1.0';
-MRS_struct.version.load = '190529'; % set to date when final updates have been made
+MRS_struct.version.Gannet = '3.1.5';
+MRS_struct.version.load = '200302'; % set to date when final updates have been made
 MRS_struct.ii = 0;
 MRS_struct.metabfile = metabfile;
 MRS_struct.p.HERMES = 0;
 
 % Flags
-MRS_struct.p.mat = 1;       % Save results in *.mat output structure? (0 = NO, 1 = YES (default)).
-MRS_struct.p.Vox = {'vox1'};  % Name of the voxel
+MRS_struct.p.mat = 1;        % Save results in *.mat output structure? (0 = NO, 1 = YES (default)).
+MRS_struct.p.Vox = {'vox1'}; % Name of the voxel
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   2. Determine data parameters from header
@@ -55,8 +55,8 @@ MRS_struct.p.Vox = {'vox1'};  % Name of the voxel
 MRS_struct = GannetDiscernDatatype(metabfile{1}, MRS_struct);
 
 % Create output folder
-if ~exist('CoRegStandAlone_output','dir')
-    mkdir CoRegStandAlone_output;
+if ~exist(fullfile(pwd, 'CoRegStandAlone_output'),'dir')
+    mkdir(fullfile(pwd, 'CoRegStandAlone_output'));
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -89,12 +89,12 @@ for ii = 1:length(metabfile) % Loop over all files in the batch (from metabfile)
             
         case 'Philips_data'
             MRS_struct = PhilipsRead_data(MRS_struct, metabfile{ii});
-        
+            
         case 'Philips_raw'
-            MRS_struct = PhilipsRawLoad(MRS_struct,metabfile{ii},3,0); % GO 11/02/2016 
-    
+            MRS_struct = PhilipsRawLoad(MRS_struct,metabfile{ii},3,0); % GO 11/02/2016
+            
     end % end of vendor switch loop for data load
-        
+    
 end % end of load-and-processing loop over datasets
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -112,15 +112,13 @@ MRS_struct = Seg(MRS_struct);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   6. Clean up, save data
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    
+
 % Save MRS_struct as mat file
 MRS_struct = rmfield(MRS_struct,'fids');
 if ii == length(metabfile) && MRS_struct.p.mat
-    % Set up filename
-    mat_name = 'CoRegStandAlone_output/MRS_struct_CoRegStandAlone.mat';
-    save(mat_name,'MRS_struct');
+    save(fullfile(pwd,'CoRegStandAlone_output','MRS_struct_CoRegStandAlone.mat'),'MRS_struct');
 end
-           
+
 end
 
 

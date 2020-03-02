@@ -7,7 +7,7 @@ function MRS_struct = GannetSegment(MRS_struct)
 % for the GM, WM and CSF segmentations. If these files are present, they
 % are loaded and used for the voxel segmentation
 
-MRS_struct.version.segment = '190503';
+MRS_struct.version.segment = '200226';
 
 warning('off'); % temporarily suppress warning messages
 
@@ -162,7 +162,10 @@ for ii = 1:numscans
                     case 'GABA'
                         tmp1 = 'GABA+/Water (CSF-corrected): ';
                         tmp2 = sprintf('%.2f i.u.', MRS_struct.out.(vox{kk}).GABA.ConcIU_CSFcorr(ii));
-                    case {'Glx','GSH','Lac','EtOH'}
+                    case 'Lac'
+                        tmp1 = 'Lac+MM/Water (CSF-corrected): ';
+                        tmp2 = sprintf('%.2f i.u.', MRS_struct.out.(vox{kk}).Lac.ConcIU_CSFcorr(ii));
+                    case {'Glx','GSH','EtOH'}
                         tmp1 = [target{jj} '/Water (CSF-corrected): '];
                         tmp2 = sprintf('%.2f i.u.', MRS_struct.out.(vox{kk}).(target{jj}).ConcIU_CSFcorr(ii));
                 end

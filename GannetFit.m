@@ -1,9 +1,9 @@
 function MRS_struct = GannetFit(MRS_struct, varargin)
 % Gannet 3.1 GannetFit
 % Started by RAEE Nov 5, 2012
-% Updates by MGS, MM 2016-2019
+% Updates by MGS, MM 2016-2020
 
-MRS_struct.version.fit = '190806';
+MRS_struct.version.fit = '200226';
 
 if MRS_struct.p.PRIAM
     vox = MRS_struct.p.Vox;
@@ -14,10 +14,8 @@ end
 if nargin < 2
     target = MRS_struct.p.target;
 elseif nargin > 1
-% varargin = Optional arguments if user wants to overwrite fitting
-%            parameters set in GannetPreInitialise; can include several
-%            options, which are:
-%            'GABA' or 'Glx': target metabolite
+    % varargin = Optional arguments if user wants to specify a target
+    % metabolite, overwriting the parameter set in GannetPreInitialise.m
     switch varargin{1}
         case 'GABA'
             MRS_struct.p.target = 'GABA';
@@ -77,458 +75,460 @@ for kk = 1:length(vox)
                 %   1.  Metabolite Fitting
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                 
-                if strcmp(target{jj},'GABA')
+                switch target{jj}
                     
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    %   GABA
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    
-                    if length(MRS_struct.p.target) == 3 && all(ismember(MRS_struct.p.target,{'EtOH','GABA','GSH'}))
+                    case 'GABA'
                         
-                        freqbounds = find(freq <= 3.55 & freq >= 2.6);
-                        plotbounds = find(freq <= 3.6 & freq >= 2.6);
+                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                        %   GABA
+                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                         
-                        maxinGABA = abs(max(real(DIFF(ii,freqbounds))) - min(real(DIFF(ii,freqbounds))));
+                        if length(MRS_struct.p.target) == 3 && all(ismember(MRS_struct.p.target,{'EtOH','GABA','GSH'}))
+                            
+                            freqbounds = find(freq <= 3.55 & freq >= 2.6);
+                            plotbounds = find(freq <= 3.6 & freq >= 2.6);
+                            
+                            maxinGABA = abs(max(real(DIFF(ii,freqbounds))) - min(real(DIFF(ii,freqbounds))));
+                            grad_points = (real(DIFF(ii,freqbounds(end))) - real(DIFF(ii,freqbounds(1)))) ./ abs(freqbounds(end) - freqbounds(1));
+                            LinearInit = grad_points ./ abs(freq(1) - freq(2));
+                            constInit = (real(DIFF(ii,freqbounds(end))) + real(DIFF(ii,freqbounds(1))))./2;
+                            
+                            GaussModelInit = [maxinGABA -90 3.026 -LinearInit constInit];
+                            GaussModelInit([1 4 5]) = GaussModelInit([1 4 5]) / maxinGABA; % Scale initial conditions to avoid warnings about numerical underflow
+                            
+                            lb = [0 -200 2.87 -40*maxinGABA -2000*maxinGABA];
+                            ub = [4000*maxinGABA -40 3.12 40*maxinGABA 1000*maxinGABA];
+                            lb([1 4 5]) = lb([1 4 5]) / maxinGABA;
+                            ub([1 4 5]) = ub([1 4 5]) / maxinGABA;
+                            
+                            % Down-weight co-edited Cho signal by including
+                            % observation weights in nonlinear regression
+                            w = ones(size(DIFF(ii,freqbounds)));
+                            residfreq = freq(freqbounds);
+                            ChoRange = residfreq >= 3.16 & residfreq <= 3.285;
+                            weightRange = ChoRange;
+                            w(weightRange) = 0.001;
+                            
+                            % Least-squares model fitting
+                            GaussModelInit = lsqcurvefit(@GaussModel, GaussModelInit, freq(freqbounds), real(DIFF(ii,freqbounds)) / maxinGABA, lb, ub, lsqopts);
+                            modelFun_w = @(x,freq) sqrt(w) .* GaussModel(x,freq); % add weights to the model
+                            [GaussModelParam, resid] = nlinfit(freq(freqbounds), sqrt(w) .* real(DIFF(ii,freqbounds)) / maxinGABA, modelFun_w, GaussModelInit, nlinopts); % add weights to the data
+                            [~, residPlot] = nlinfit(freq(freqbounds), real(DIFF(ii,freqbounds)) / maxinGABA, @GaussModel, GaussModelParam, nlinopts); % re-run for residuals for output figure
+                            
+                            % Rescale fit parameters and residuals
+                            GaussModelParam([1 4 5]) = GaussModelParam([1 4 5]) * maxinGABA;
+                            resid = resid * maxinGABA;
+                            residPlot = residPlot * maxinGABA;
+                            
+                        else
+                            
+                            freqbounds = find(freq <= 3.55 & freq >= 2.79);
+                            plotbounds = find(freq <= 3.6 & freq >= 2.7);
+                            
+                            maxinGABA = abs(max(real(DIFF(ii,freqbounds))) - min(real(DIFF(ii,freqbounds))));
+                            grad_points = (real(DIFF(ii,freqbounds(end))) - real(DIFF(ii,freqbounds(1)))) ./ abs(freqbounds(end) - freqbounds(1));
+                            LinearInit = grad_points ./ abs(freq(1) - freq(2));
+                            constInit = (real(DIFF(ii,freqbounds(end))) + real(DIFF(ii,freqbounds(1))))./2;
+                            
+                            GaussModelInit = [maxinGABA -90 3.026 -LinearInit constInit];
+                            GaussModelInit([1 4 5]) = GaussModelInit([1 4 5]) / maxinGABA; % Scale initial conditions to avoid warnings about numerical underflow
+                            
+                            lb = [0 -200 2.87 -40*maxinGABA -2000*maxinGABA];
+                            ub = [4000*maxinGABA -40 3.12 40*maxinGABA 1000*maxinGABA];
+                            lb([1 4 5]) = lb([1 4 5]) / maxinGABA;
+                            ub([1 4 5]) = ub([1 4 5]) / maxinGABA;
+                            
+                            % Down-weight Cho subtraction artifact by including
+                            % observation weights in nonlinear regression; improves
+                            % accuracy of peak fitting (MM: 170701 - thanks to Alex
+                            % Craven of University of Bergen for this idea)
+                            w = ones(size(DIFF(ii,freqbounds)));
+                            residfreq = freq(freqbounds);
+                            ChoRange = residfreq >= 3.16 & residfreq <= 3.285;
+                            weightRange = ChoRange;
+                            w(weightRange) = 0.001;
+                            
+                            % Weighted least-squares model fitting
+                            GaussModelInit = lsqcurvefit(@GaussModel, GaussModelInit, freq(freqbounds), real(DIFF(ii,freqbounds)) / maxinGABA, lb, ub, lsqopts);
+                            modelFun_w = @(x,freq) sqrt(w) .* GaussModel(x,freq); % add weights to the model
+                            [GaussModelParam, resid] = nlinfit(freq(freqbounds), sqrt(w) .* real(DIFF(ii,freqbounds)) / maxinGABA, modelFun_w, GaussModelInit, nlinopts); % add weights to the data
+                            [~, residPlot] = nlinfit(freq(freqbounds), real(DIFF(ii,freqbounds)) / maxinGABA, @GaussModel, GaussModelParam, nlinopts); % re-run for residuals for output figure
+                            
+                            % Rescale fit parameters and residuals
+                            GaussModelParam([1 4 5]) = GaussModelParam([1 4 5]) * maxinGABA;
+                            resid = resid * maxinGABA;
+                            residPlot = residPlot * maxinGABA;
+                            
+                        end
+                        
+                        GABAheight = GaussModelParam(1);
+                        MRS_struct.out.(vox{kk}).(target{jj}).FitError(ii) = 100*std(resid)/GABAheight;
+                        MRS_struct.out.(vox{kk}).(target{jj}).Area(ii) = GaussModelParam(1)./sqrt(-GaussModelParam(2))*sqrt(pi);
+                        sigma = sqrt(1/(2*(abs(GaussModelParam(2)))));
+                        MRS_struct.out.(vox{kk}).(target{jj}).FWHM(ii) = abs((2*MRS_struct.p.LarmorFreq(ii))*sigma);
+                        MRS_struct.out.(vox{kk}).(target{jj}).ModelParam(ii,:) = GaussModelParam;
+                        MRS_struct.out.(vox{kk}).(target{jj}).Resid(ii,:) = resid;
+                        
+                        % Calculate SNR of GABA signal
+                        noiseSigma_DIFF = CalcNoise(freq, DIFF(ii,:));
+                        MRS_struct.out.(vox{kk}).(target{jj}).SNR(ii) = abs(GABAheight)/noiseSigma_DIFF;
+                        
+                    case 'GSH'
+                        
+                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                        %   GSH
+                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                        
+                        freqbounds = find(freq <= 3.5 & freq >= 2.25);
+                        plotbounds = find(freq <= 4.2 & freq >= 1.75);
+                        
+                        GSHbounds = freq <= 3.3 & freq >= 2.85;
+                        Aspartylbounds = freq <= 2.85 & freq >= 2.25;
+                        
+                        maxinGSH = max(abs(real(DIFF(ii,GSHbounds))));
+                        [maxinAspartyl, maxInd] = max(abs(real(DIFF(ii,Aspartylbounds))));
+                        
+                        offset = real(DIFF(ii,freqbounds(end)));
                         grad_points = (real(DIFF(ii,freqbounds(end))) - real(DIFF(ii,freqbounds(1)))) ./ abs(freqbounds(end) - freqbounds(1));
                         LinearInit = grad_points ./ abs(freq(1) - freq(2));
-                        constInit = (real(DIFF(ii,freqbounds(end))) + real(DIFF(ii,freqbounds(1))))./2;
                         
-                        GaussModelInit = [maxinGABA -90 3.026 -LinearInit constInit];
-                        GaussModelInit([1 4 5]) = GaussModelInit([1 4 5]) / maxinGABA; % Scale initial conditions to avoid warnings about numerical underflow
+                        tmp = DIFF(ii,Aspartylbounds);
+                        s = sign(real(tmp(maxInd)));
+                        maxinAspartyl = s * maxinAspartyl;
                         
-                        lb = [0 -200 2.87 -40*maxinGABA -2000*maxinGABA];
-                        ub = [4000*maxinGABA -40 3.12 40*maxinGABA 1000*maxinGABA];
-                        lb([1 4 5]) = lb([1 4 5]) / maxinGABA;
-                        ub([1 4 5]) = ub([1 4 5]) / maxinGABA;
+                        if MRS_struct.p.HERMES
+                            s = -1;
+                        else
+                            s = 1;
+                        end
                         
-                        % Down-weight co-edited Cho signal by including
-                        % observation weights in nonlinear regression
-                        w = ones(size(DIFF(ii,freqbounds)));
-                        residfreq = freq(freqbounds);
-                        ChoRange = residfreq >= 3.16 & residfreq <= 3.285;
-                        weightRange = ChoRange;
-                        w(weightRange) = 0.001;
+                        if MRS_struct.p.TE(ii) < 100 % MM (190613)
+                            
+                            GSHgaussModel = @FiveGaussModel;
+                            
+                            GaussModelInit = [maxinGSH             -300  2.95 ...
+                                s*maxinAspartyl*0.25 -500  2.73 ...
+                                maxinAspartyl        -1000 2.61 ...
+                                maxinAspartyl        -1000 2.55 ...
+                                s*maxinAspartyl*0.15 -600  2.45 ...
+                                offset -LinearInit -LinearInit];
+                            GaussModelInit([1 4 7 10 13 16 17 18]) = GaussModelInit([1 4 7 10 13 16 17 18]) / maxinGSH; % Scale initial conditions to avoid warnings about numerical underflow
+                            
+                            lb = [-4000*maxinGSH            -1000 2.95-0.02 ...
+                                4000*maxinAspartyl*0.25  -1000 2.73-0.02 ...
+                                4000*maxinAspartyl       -1000 2.61-0.02 ...
+                                4000*maxinAspartyl       -1000 2.55-0.02 ...
+                                4000*maxinAspartyl*0.15  -1000 2.45-0.02 ...
+                                -2000*abs(offset) 2000*maxinAspartyl 2000*maxinAspartyl];
+                            ub =  [4000*maxinGSH           -40 2.95+0.02 ...
+                                -4000*maxinAspartyl*0.25 -40 2.73+0.02 ...
+                                -4000*maxinAspartyl      -40 2.61+0.02 ...
+                                -4000*maxinAspartyl      -40 2.55+0.02 ...
+                                -4000*maxinAspartyl*0.15 -40 2.45+0.02 ...
+                                1000*abs(offset) -1000*maxinAspartyl -1000*maxinAspartyl];
+                            lb([1 4 7 10 13 16 17 18]) = lb([1 4 7 10 13 16 17 18]) / maxinGSH;
+                            ub([1 4 7 10 13 16 17 18]) = ub([1 4 7 10 13 16 17 18]) / maxinGSH;
+                            
+                        else
+                            
+                            GSHgaussModel = @SixGaussModel;
+                            
+                            GaussModelInit = [maxinGSH           -300  2.95 ...
+                                maxinAspartyl*0.7  -500  2.73 ...
+                                maxinAspartyl      -1000 2.63 ...
+                                maxinAspartyl*0.7  -1000 2.58 ...
+                                maxinAspartyl*0.5  -600  2.46 ...
+                                maxinAspartyl*0.35 -600  2.37 ...
+                                offset -LinearInit -LinearInit];
+                            GaussModelInit([1 4 7 10 13 16 19 20 21]) = GaussModelInit([1 4 7 10 13 16 19 20 21]) / maxinGSH; % Scale initial conditions to avoid warnings about numerical underflow
+                            
+                            lb = [-4000*maxinGSH           -1000 2.95-0.02 ...
+                                -4000*maxinAspartyl*0.7  -1000 2.73-0.02 ...
+                                -4000*maxinAspartyl      -1000 2.63-0.02 ...
+                                -4000*maxinAspartyl*0.7  -1000 2.58-0.02 ...
+                                -4000*maxinAspartyl*0.5  -1000 2.46-0.02 ...
+                                -4000*maxinAspartyl*0.35 -1000 2.37-0.02 ...
+                                -2000*abs(offset) -2000*maxinAspartyl -2000*maxinAspartyl];
+                            ub =  [4000*maxinGSH           -40 2.95+0.02 ...
+                                4000*maxinAspartyl*0.7  -40 2.73+0.02 ...
+                                4000*maxinAspartyl      -40 2.63+0.02 ...
+                                4000*maxinAspartyl*0.7  -40 2.58+0.02 ...
+                                4000*maxinAspartyl*0.5  -40 2.46+0.02 ...
+                                4000*maxinAspartyl*0.35 -40 2.37+0.02 ...
+                                1000*abs(offset) 1000*maxinAspartyl 1000*maxinAspartyl];
+                            lb([1 4 7 10 13 16 19 20 21]) = lb([1 4 7 10 13 16 19 20 21]) / maxinGSH;
+                            ub([1 4 7 10 13 16 19 20 21]) = ub([1 4 7 10 13 16 19 20 21]) / maxinGSH;
+                            
+                        end
                         
-                        % Least-squares model fitting
-                        GaussModelInit = lsqcurvefit(@GaussModel, GaussModelInit, freq(freqbounds), real(DIFF(ii,freqbounds)) / maxinGABA, lb, ub, lsqopts);
-                        modelFun_w = @(x,freq) sqrt(w) .* GaussModel(x,freq); % add weights to the model
-                        [GaussModelParam, resid] = nlinfit(freq(freqbounds), sqrt(w) .* real(DIFF(ii,freqbounds)) / maxinGABA, modelFun_w, GaussModelInit, nlinopts); % add weights to the data
-                        [~, residPlot] = nlinfit(freq(freqbounds), real(DIFF(ii,freqbounds)) / maxinGABA, @GaussModel, GaussModelParam, nlinopts); % re-run for residuals for output figure
+                        if length(MRS_struct.p.target) == 3 && all(ismember(MRS_struct.p.target,{'EtOH','GABA','GSH'}))
+                            w = ones(size(DIFF(ii,freqbounds)));
+                            residfreq = freq(freqbounds);
+                            ChoRange = residfreq >= 3.13 & residfreq <= 3.3;
+                            weightRange = ChoRange;
+                            w(weightRange) = 0.001;
+                        else
+                            w = ones(size(DIFF(ii,freqbounds)));
+                        end
+                        
+                        % Weighted least-squares model fitting
+                        GaussModelInit = lsqcurvefit(GSHgaussModel, GaussModelInit, freq(freqbounds), real(DIFF(ii,freqbounds)) / maxinGSH, lb, ub, lsqopts);
+                        modelFun_w = @(x,freq) sqrt(w) .* GSHgaussModel(x,freq); % add weights to the model
+                        [GaussModelParam, resid] = nlinfit(freq(freqbounds), sqrt(w) .* real(DIFF(ii,freqbounds)) / maxinGSH, modelFun_w, GaussModelInit, nlinopts); % add weights to the data
+                        [~, residPlot] = nlinfit(freq(freqbounds), real(DIFF(ii,freqbounds)) / maxinGSH, GSHgaussModel, GaussModelParam, nlinopts); % re-run for residuals for output figure
                         
                         % Rescale fit parameters and residuals
-                        GaussModelParam([1 4 5]) = GaussModelParam([1 4 5]) * maxinGABA;
-                        resid = resid * maxinGABA;
-                        residPlot = residPlot * maxinGABA;
+                        if MRS_struct.p.TE(ii) < 100 % MM (190613)
+                            GaussModelParam([1 4 7 10 13 16 17 18]) = GaussModelParam([1 4 7 10 13 16 17 18]) * maxinGSH;
+                        else
+                            GaussModelParam([1 4 7 10 13 16 19 20 21]) = GaussModelParam([1 4 7 10 13 16 19 20 21]) * maxinGSH;
+                        end
+                        resid = resid * maxinGSH;
+                        residPlot = residPlot * maxinGSH;
                         
-                    else
+                        GSHGaussModelParam = GaussModelParam;
+                        if MRS_struct.p.TE(ii) < 100 % MM (190613)
+                            GSHGaussModelParam(4:3:13) = 0;
+                        else
+                            GSHGaussModelParam(4:3:16) = 0;
+                        end
                         
-                        freqbounds = find(freq <= 3.55 & freq >= 2.79);
-                        plotbounds = find(freq <= 3.6 & freq >= 2.7);
+                        BaselineModelParam = GSHGaussModelParam;
+                        BaselineModelParam(1) = 0;
                         
-                        maxinGABA = abs(max(real(DIFF(ii,freqbounds))) - min(real(DIFF(ii,freqbounds))));
+                        MRS_struct.out.(vox{kk}).(target{jj}).Area(ii) = real(sum(FiveGaussModel(GSHGaussModelParam, freq(freqbounds)) - FiveGaussModel(BaselineModelParam, freq(freqbounds)))) ...
+                            * abs(freq(1)-freq(2));
+                        GSHheight = GSHGaussModelParam(1);
+                        
+                        % Range to determine residuals for GSH
+                        residfreq = freq(freqbounds);
+                        residGSH = resid(residfreq <= 3.3 & residfreq >= 2.82);
+                        
+                        MRS_struct.out.(vox{kk}).(target{jj}).FitError(ii) = 100*std(residGSH)/GSHheight;
+                        sigma = sqrt(1/(2*(abs(GSHGaussModelParam(2)))));
+                        MRS_struct.out.(vox{kk}).(target{jj}).FWHM(ii) =  abs((2*MRS_struct.p.LarmorFreq(ii))*sigma);
+                        MRS_struct.out.(vox{kk}).(target{jj}).ModelParam(ii,:) = GaussModelParam;
+                        MRS_struct.out.(vox{kk}).(target{jj}).Resid(ii,:) = residGSH;
+                        
+                        % Calculate SNR of GSH signal
+                        noiseSigma_DIFF = CalcNoise(freq, DIFF(ii,:));
+                        MRS_struct.out.(vox{kk}).(target{jj}).SNR(ii) = abs(GSHheight)/noiseSigma_DIFF;
+                        
+                    case 'Lac'
+                        
+                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                        %   Lac
+                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                        
+                        freqbounds = find(freq <= 1.8 & freq >= 0.5);
+                        plotbounds = find(freq <= 2 & freq >= 0);
+                        
+                        offset = (mean(real(DIFF(ii,freqbounds(1:10))),2) + mean(real(DIFF(ii,freqbounds((end-9):end))),2))/2;
+                        slope = (mean(real(DIFF(ii,freqbounds(1:10))),2) - mean(real(DIFF(ii,freqbounds((end-9):end))),2))/abs(freq(freqbounds(1)) - freq(freqbounds(end)));
+                        peak_amp = 0.03; % Presumably this won't work for some data... for now it seems to work
+                        
+                        FourGaussModelInit = [peak_amp*0.16 -100 1.18 peak_amp*0.3 -1000 1.325 offset slope 0];
+                        lb = [0 -300 0.9 0 -5000 1.0  -1 -1 -1];
+                        ub = [1 0 1.4 1 0 1.6 1 1 1];
+                        
+                        FourGaussModelInit = lsqcurvefit(@FourGaussModel, FourGaussModelInit, freq(freqbounds), real(DIFF(ii,freqbounds)), lb, ub,lsqopts);
+                        [FourGaussModelParam, resid] = nlinfit(freq(freqbounds), real(DIFF(ii,freqbounds)), @FourGaussModel, FourGaussModelInit, nlinopts);
+                        
+                        MRS_struct.out.(vox{kk}).Lac.ModelParam(ii,:) = FourGaussModelParam;
+                        %LacGaussModelParam = FourGaussModelParam;
+                        %LacGaussModelParam(1) = 0;
+                        %MMGaussModelParam = FourGaussModelParam;
+                        %MMGaussModelParam(4) = 0;
+                        
+                        MRS_struct.out.(vox{kk}).Lac.Area(ii) = real(sum(FourGaussModel([FourGaussModelParam(1:6) 0 0 0],freq(freqbounds)))) * abs(freq(1)-freq(2)); % NB: this is Lac+MM
+                        Lacheight = FourGaussModelParam(4);
+                        MRS_struct.out.(vox{kk}).Lac.FitError(ii) = 100*std(resid)/Lacheight;
+                        MRS_struct.out.(vox{kk}).Lac.FWHM(ii) = NaN; % MM (170818): Still need to calculate FWHM
+                        MRS_struct.out.(vox{kk}).Lac.Resid(ii,:) = resid;
+                        
+                        % Calculate SNR of Lac signal
+                        noiseSigma_DIFF = CalcNoise(freq, DIFF(ii,:));
+                        MRS_struct.out.(vox{kk}).Lac.SNR(ii) = abs(Lacheight)/noiseSigma_DIFF;
+                        
+                    case 'Glx'
+                        
+                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                        %   Glx
+                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                        
+                        freqbounds = find(freq <= 4.1 & freq >= 3.45);
+                        plotbounds = find(freq <= 4.5 & freq >= 3);
+                        
+                        maxinGABA = max(real(DIFF(ii,freqbounds)));
                         grad_points = (real(DIFF(ii,freqbounds(end))) - real(DIFF(ii,freqbounds(1)))) ./ abs(freqbounds(end) - freqbounds(1));
                         LinearInit = grad_points ./ abs(freq(1) - freq(2));
                         constInit = (real(DIFF(ii,freqbounds(end))) + real(DIFF(ii,freqbounds(1))))./2;
                         
-                        GaussModelInit = [maxinGABA -90 3.026 -LinearInit constInit];
-                        GaussModelInit([1 4 5]) = GaussModelInit([1 4 5]) / maxinGABA; % Scale initial conditions to avoid warnings about numerical underflow
+                        GaussModelInit = [maxinGABA -90 3.72 maxinGABA -90 3.77 -LinearInit constInit];
+                        lb = [0 -200 3.72-0.01 0 -200 3.77-0.01 -40*maxinGABA -2000*maxinGABA];
+                        ub = [4000*maxinGABA -40 3.72+0.01 4000*maxinGABA -40 3.77+0.01 40*maxinGABA 1000*maxinGABA];
                         
-                        lb = [0 -200 2.87 -40*maxinGABA -2000*maxinGABA];
-                        ub = [4000*maxinGABA -40 3.12 40*maxinGABA 1000*maxinGABA];
-                        lb([1 4 5]) = lb([1 4 5]) / maxinGABA;
-                        ub([1 4 5]) = ub([1 4 5]) / maxinGABA;
+                        GaussModelInit = lsqcurvefit(@DoubleGaussModel, GaussModelInit, freq(freqbounds), real(DIFF(ii,freqbounds)), lb, ub, lsqopts);
+                        [GaussModelParam, resid] = nlinfit(freq(freqbounds), real(DIFF(ii,freqbounds)), @DoubleGaussModel, GaussModelInit, nlinopts);
                         
-                        % Down-weight Cho subtraction artifact by including
-                        % observation weights in nonlinear regression; improves
-                        % accuracy of peak fitting (MM: 170701 - thanks to Alex
-                        % Craven of University of Bergen for this idea)
+                        Glxheight = max(GaussModelParam([1,4]));
+                        MRS_struct.out.(vox{kk}).(target{jj}).FitError(ii) = 100*std(resid)/Glxheight;
+                        MRS_struct.out.(vox{kk}).(target{jj}).Area(ii) = (GaussModelParam(1)./sqrt(-GaussModelParam(2))*sqrt(pi)) + ...
+                            (GaussModelParam(4)./sqrt(-GaussModelParam(5))*sqrt(pi));
+                        sigma = ((1/(2*(abs(GaussModelParam(2))))).^(1/2)) + ((1/(2*(abs(GaussModelParam(5))))).^(1/2));
+                        MRS_struct.out.(vox{kk}).(target{jj}).FWHM(ii) = abs((2*MRS_struct.p.LarmorFreq(ii))*sigma);
+                        MRS_struct.out.(vox{kk}).(target{jj}).ModelParam(ii,:) = GaussModelParam;
+                        MRS_struct.out.(vox{kk}).(target{jj}).Resid(ii,:) = resid;
+                        
+                        % Calculate SNR of Glx signal
+                        noiseSigma_DIFF = CalcNoise(freq, DIFF(ii,:));
+                        MRS_struct.out.(vox{kk}).Glx.SNR(ii) = abs(Glxheight)/noiseSigma_DIFF;
+                        
+                    case 'GABAGlx'
+                        
+                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                        %   GABA+Glx
+                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                        
+                        freqbounds = find(freq <= 4.1 & freq >= 2.79);
+                        plotbounds = find(freq <= 4.2 & freq >= 2.7);
+                        
+                        GABAbounds = freq <= 3.2 & freq >= 2.79;
+                        Glxbounds  = freq <= 4.1 & freq >= 3.4;
+                        
+                        maxinGABA = max(real(DIFF(ii,GABAbounds)));
+                        maxinGlx = max(real(DIFF(ii,Glxbounds)));
+                        grad_points = (real(DIFF(ii,freqbounds(end))) - real(DIFF(ii,freqbounds(1)))) ./ abs(freqbounds(end) - freqbounds(1));
+                        LinearInit = grad_points ./ abs(freq(1) - freq(2));
+                        
+                        GaussModelInit = [maxinGlx -700 3.71 maxinGlx -700 3.79 maxinGABA -90 3.02 -LinearInit 0 0];
+                        GaussModelInit([1 4 7 10]) = GaussModelInit([1 4 7 10]) / maxinGlx; % Scale initial conditions to avoid warnings about numerical underflow
+                        
+                        lb = [-4000*maxinGlx -1000 3.71-0.02 -4000*maxinGlx -1000 3.79-0.02 -4000*maxinGABA -200 3.02-0.05 -40*maxinGABA -2000*maxinGABA -2000*maxinGABA];
+                        ub = [4000*maxinGlx -40 3.71+0.02 4000*maxinGlx -40 3.79+0.02 4000*maxinGABA -40 3.02+0.05 40*maxinGABA 1000*maxinGABA 1000*maxinGABA];
+                        lb([1 4 7 10]) = lb([1 4 7 10]) / maxinGlx;
+                        ub([1 4 7 10]) = ub([1 4 7 10]) / maxinGlx;
+                        
+                        % Down-weight Cho subtraction artifact and (if HERMES)
+                        % signals downfield of Glx by including observation weights
+                        % in nonlinear regression; improves accuracy of peak
+                        % fittings (MM: 170701 - thanks to Alex Craven of
+                        % University of Bergen for this idea)
                         w = ones(size(DIFF(ii,freqbounds)));
                         residfreq = freq(freqbounds);
                         ChoRange = residfreq >= 3.16 & residfreq <= 3.285;
-                        weightRange = ChoRange;
+                        GlxDownFieldRange = residfreq >= 3.9 & residfreq <= 4.2;
+                        if MRS_struct.p.HERMES && any(strcmp(MRS_struct.p.vendor,{'Philips','Philips_data','Philips_raw'}))
+                            weightRange = ChoRange | GlxDownFieldRange;
+                        else
+                            weightRange = ChoRange;
+                        end
                         w(weightRange) = 0.001;
                         
                         % Weighted least-squares model fitting
-                        GaussModelInit = lsqcurvefit(@GaussModel, GaussModelInit, freq(freqbounds), real(DIFF(ii,freqbounds)) / maxinGABA, lb, ub, lsqopts);
-                        modelFun_w = @(x,freq) sqrt(w) .* GaussModel(x,freq); % add weights to the model
-                        [GaussModelParam, resid] = nlinfit(freq(freqbounds), sqrt(w) .* real(DIFF(ii,freqbounds)) / maxinGABA, modelFun_w, GaussModelInit, nlinopts); % add weights to the data
-                        [~, residPlot] = nlinfit(freq(freqbounds), real(DIFF(ii,freqbounds)) / maxinGABA, @GaussModel, GaussModelParam, nlinopts); % re-run for residuals for output figure
+                        GaussModelInit = lsqcurvefit(@GABAGlxModel, GaussModelInit, freq(freqbounds), real(DIFF(ii,freqbounds)) / maxinGlx, lb, ub, lsqopts);
+                        modelFun_w = @(x,freq) sqrt(w) .* GABAGlxModel(x,freq); % add weights to the model
+                        [GaussModelParam, resid] = nlinfit(freq(freqbounds), sqrt(w) .* real(DIFF(ii,freqbounds)) / maxinGlx, modelFun_w, GaussModelInit, nlinopts); % add weights to the data
+                        [~, residPlot] = nlinfit(freq(freqbounds), real(DIFF(ii,freqbounds)) / maxinGlx, @GABAGlxModel, GaussModelParam, nlinopts); % re-run for residuals for output figure
                         
                         % Rescale fit parameters and residuals
-                        GaussModelParam([1 4 5]) = GaussModelParam([1 4 5]) * maxinGABA;
-                        resid = resid * maxinGABA;
-                        residPlot = residPlot * maxinGABA;
+                        GaussModelParam([1 4 7 10 11 12]) = GaussModelParam([1 4 7 10 11 12]) * maxinGlx;
+                        resid = resid * maxinGlx;
+                        residPlot = residPlot * maxinGlx;
                         
-                    end
-                    
-                    GABAheight = GaussModelParam(1);
-                    MRS_struct.out.(vox{kk}).(target{jj}).FitError(ii) = 100*std(resid)/GABAheight;
-                    MRS_struct.out.(vox{kk}).(target{jj}).Area(ii) = GaussModelParam(1)./sqrt(-GaussModelParam(2))*sqrt(pi);
-                    sigma = sqrt(1/(2*(abs(GaussModelParam(2)))));
-                    MRS_struct.out.(vox{kk}).(target{jj}).FWHM(ii) = abs((2*MRS_struct.p.LarmorFreq(ii))*sigma);
-                    MRS_struct.out.(vox{kk}).(target{jj}).ModelParam(ii,:) = GaussModelParam;
-                    MRS_struct.out.(vox{kk}).(target{jj}).Resid(ii,:) = resid;
-                    
-                    % Calculate SNR of GABA signal
-                    noiseSigma_DIFF = CalcNoise(freq, DIFF(ii,:));
-                    MRS_struct.out.(vox{kk}).(target{jj}).SNR(ii) = abs(GABAheight)/noiseSigma_DIFF;
-                    
-                elseif strcmp(target{jj},'GSH')
-                    
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    %   GSH
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    
-                    freqbounds = find(freq <= 3.5 & freq >= 2.25);
-                    plotbounds = find(freq <= 4.2 & freq >= 1.75);
-                    
-                    GSHbounds = freq <= 3.3 & freq >= 2.85;
-                    Aspartylbounds = freq <= 2.85 & freq >= 2.25;
-                    
-                    maxinGSH = max(abs(real(DIFF(ii,GSHbounds))));
-                    [maxinAspartyl, maxInd] = max(abs(real(DIFF(ii,Aspartylbounds))));
-                    
-                    offset = real(DIFF(ii,freqbounds(end)));
-                    grad_points = (real(DIFF(ii,freqbounds(end))) - real(DIFF(ii,freqbounds(1)))) ./ abs(freqbounds(end) - freqbounds(1));
-                    LinearInit = grad_points ./ abs(freq(1) - freq(2));
-                    
-                    tmp = DIFF(ii,Aspartylbounds);
-                    s = sign(real(tmp(maxInd)));
-                    maxinAspartyl = s * maxinAspartyl;
-                    
-                    if MRS_struct.p.HERMES
-                        s = -1;
-                    else
-                        s = 1;
-                    end
-                    
-                    if MRS_struct.p.TE(ii) < 100 % MM (190613)
+                        % Range to determine residuals for GABA and Glx
+                        residGABA = resid(residfreq <= 3.55 & residfreq >= 2.79);
+                        residGlx = resid(residfreq <= 4.10 & residfreq >= 3.45);
                         
-                        GSHgaussModel = @FiveGaussModel;
+                        % GABA fitting output
+                        MRS_struct.out.(vox{kk}).GABA.Area(ii) = (GaussModelParam(7)./sqrt(-GaussModelParam(8))*sqrt(pi));
+                        GABAheight = GaussModelParam(7);
+                        MRS_struct.out.(vox{kk}).GABA.FitError(ii) = 100*std(residGABA)/GABAheight;
+                        sigma = sqrt(1/(2*(abs(GaussModelParam(8)))));
+                        MRS_struct.out.(vox{kk}).GABA.FWHM(ii) = abs((2*MRS_struct.p.LarmorFreq(ii))*sigma);
+                        MRS_struct.out.(vox{kk}).GABA.ModelParam(ii,:) = GaussModelParam;
+                        MRS_struct.out.(vox{kk}).GABA.Resid(ii,:) = residGABA;
                         
-                        GaussModelInit = [maxinGSH             -300  2.95 ...
-                            s*maxinAspartyl*0.25 -500  2.73 ...
-                            maxinAspartyl        -1000 2.61 ...
-                            maxinAspartyl        -1000 2.55 ...
-                            s*maxinAspartyl*0.15 -600  2.45 ...
-                            offset -LinearInit -LinearInit];
-                        GaussModelInit([1 4 7 10 13 16 17 18]) = GaussModelInit([1 4 7 10 13 16 17 18]) / maxinGSH; % Scale initial conditions to avoid warnings about numerical underflow
+                        % Calculate SNR of GABA signal
+                        noiseSigma_DIFF = CalcNoise(freq, DIFF(ii,:));
+                        MRS_struct.out.(vox{kk}).GABA.SNR(ii) = abs(GABAheight)/noiseSigma_DIFF;
                         
-                        lb = [-4000*maxinGSH            -1000 2.95-0.02 ...
-                            4000*maxinAspartyl*0.25  -1000 2.73-0.02 ...
-                            4000*maxinAspartyl       -1000 2.61-0.02 ...
-                            4000*maxinAspartyl       -1000 2.55-0.02 ...
-                            4000*maxinAspartyl*0.15  -1000 2.45-0.02 ...
-                            -2000*abs(offset) 2000*maxinAspartyl 2000*maxinAspartyl];
-                        ub =  [4000*maxinGSH           -40 2.95+0.02 ...
-                            -4000*maxinAspartyl*0.25 -40 2.73+0.02 ...
-                            -4000*maxinAspartyl      -40 2.61+0.02 ...
-                            -4000*maxinAspartyl      -40 2.55+0.02 ...
-                            -4000*maxinAspartyl*0.15 -40 2.45+0.02 ...
-                            1000*abs(offset) -1000*maxinAspartyl -1000*maxinAspartyl];
-                        lb([1 4 7 10 13 16 17 18]) = lb([1 4 7 10 13 16 17 18]) / maxinGSH;
-                        ub([1 4 7 10 13 16 17 18]) = ub([1 4 7 10 13 16 17 18]) / maxinGSH;
+                        % Glx fitting output
+                        MRS_struct.out.(vox{kk}).Glx.Area(ii) = (GaussModelParam(1)./sqrt(-GaussModelParam(2))*sqrt(pi)) + ...
+                            (GaussModelParam(4)./sqrt(-GaussModelParam(5))*sqrt(pi));
+                        Glxheight = max(GaussModelParam([1,4]));
+                        MRS_struct.out.(vox{kk}).Glx.FitError(ii) = 100*std(residGABA)/Glxheight;
+                        sigma = sqrt(1/(2*(abs(GaussModelParam(2))))) + sqrt(1/(2*(abs(GaussModelParam(5)))));
+                        MRS_struct.out.(vox{kk}).Glx.FWHM(ii) = abs((2*MRS_struct.p.LarmorFreq(ii))*sigma);
+                        MRS_struct.out.(vox{kk}).Glx.ModelParam(ii,:) = GaussModelParam;
+                        MRS_struct.out.(vox{kk}).Glx.Resid(ii,:) = residGlx;
                         
-                    else
+                        % Calculate SNR of Glx signal
+                        MRS_struct.out.(vox{kk}).Glx.SNR(ii) = abs(Glxheight)/noiseSigma_DIFF;
                         
-                        GSHgaussModel = @SixGaussModel;
+                    case 'EtOH'
                         
-                        GaussModelInit = [maxinGSH           -300  2.95 ...
-                            maxinAspartyl*0.7  -500  2.73 ...
-                            maxinAspartyl      -1000 2.63 ...
-                            maxinAspartyl*0.7  -1000 2.58 ...
-                            maxinAspartyl*0.5  -600  2.46 ...
-                            maxinAspartyl*0.35 -600  2.37 ...
-                            offset -LinearInit -LinearInit];
-                        GaussModelInit([1 4 7 10 13 16 19 20 21]) = GaussModelInit([1 4 7 10 13 16 19 20 21]) / maxinGSH; % Scale initial conditions to avoid warnings about numerical underflow
+                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                        %   EtOH
+                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                         
-                        lb = [-4000*maxinGSH           -1000 2.95-0.02 ...
-                            -4000*maxinAspartyl*0.7  -1000 2.73-0.02 ...
-                            -4000*maxinAspartyl      -1000 2.63-0.02 ...
-                            -4000*maxinAspartyl*0.7  -1000 2.58-0.02 ...
-                            -4000*maxinAspartyl*0.5  -1000 2.46-0.02 ...
-                            -4000*maxinAspartyl*0.35 -1000 2.37-0.02 ...
-                            -2000*abs(offset) -2000*maxinAspartyl -2000*maxinAspartyl];
-                        ub =  [4000*maxinGSH           -40 2.95+0.02 ...
-                            4000*maxinAspartyl*0.7  -40 2.73+0.02 ...
-                            4000*maxinAspartyl      -40 2.63+0.02 ...
-                            4000*maxinAspartyl*0.7  -40 2.58+0.02 ...
-                            4000*maxinAspartyl*0.5  -40 2.46+0.02 ...
-                            4000*maxinAspartyl*0.35 -40 2.37+0.02 ...
-                            1000*abs(offset) 1000*maxinAspartyl 1000*maxinAspartyl];
-                        lb([1 4 7 10 13 16 19 20 21]) = lb([1 4 7 10 13 16 19 20 21]) / maxinGSH;
-                        ub([1 4 7 10 13 16 19 20 21]) = ub([1 4 7 10 13 16 19 20 21]) / maxinGSH;
+                        freqbounds = find(freq <= 1.8 & freq >= 0.6);
+                        plotbounds = find(freq <= 1.9 & freq >= 0.4);
                         
-                    end
-                    
-                    if length(MRS_struct.p.target) == 3 && all(ismember(MRS_struct.p.target,{'EtOH','GABA','GSH'}))
+                        maxinEtOH = max(real(DIFF(ii,freqbounds)));
+                        grad_points = (real(DIFF(ii,freqbounds(end))) - real(DIFF(ii,freqbounds(1)))) ./ abs(freqbounds(end) - freqbounds(1));
+                        LinearInit = grad_points ./ abs(freq(1) - freq(2));
+                        
+                        LorentzModelInit = [maxinEtOH 1.11 1/500 ...
+                            maxinEtOH 1.23 1/500 ...
+                            -LinearInit 0];
+                        LorentzModelInit([1 4 7]) = LorentzModelInit([1 4 7]) / maxinEtOH; % Scale initial conditions to avoid warnings about numerical underflow
+                        
+                        lb = [0             1.11-0.01 1/700 0             1.23-0.01 1/700 -40*maxinEtOH -2e3*maxinEtOH];
+                        ub = [100*maxinEtOH 1.11+0.01 1/300 100*maxinEtOH 1.23+0.01 1/300  40*maxinEtOH  1e3*maxinEtOH];
+                        
+                        lb([1 4 7]) = lb([1 4 7]) / maxinEtOH;
+                        ub([1 4 7]) = ub([1 4 7]) / maxinEtOH;
+                        
+                        % Down-weight co-edited Lac signal by including observation
+                        % weights in nonlinear regression
                         w = ones(size(DIFF(ii,freqbounds)));
                         residfreq = freq(freqbounds);
-                        ChoRange = residfreq >= 3.13 & residfreq <= 3.3;
-                        weightRange = ChoRange;
+                        LacRange = residfreq >= 1.29 & residfreq <= 1.51;
+                        weightRange = LacRange;
                         w(weightRange) = 0.001;
-                    else
-                        w = ones(size(DIFF(ii,freqbounds)));
-                    end
-                    
-                    % Weighted least-squares model fitting
-                    GaussModelInit = lsqcurvefit(GSHgaussModel, GaussModelInit, freq(freqbounds), real(DIFF(ii,freqbounds)) / maxinGSH, lb, ub, lsqopts);
-                    modelFun_w = @(x,freq) sqrt(w) .* GSHgaussModel(x,freq); % add weights to the model
-                    [GaussModelParam, resid] = nlinfit(freq(freqbounds), sqrt(w) .* real(DIFF(ii,freqbounds)) / maxinGSH, modelFun_w, GaussModelInit, nlinopts); % add weights to the data
-                    [~, residPlot] = nlinfit(freq(freqbounds), real(DIFF(ii,freqbounds)) / maxinGSH, GSHgaussModel, GaussModelParam, nlinopts); % re-run for residuals for output figure
-                    
-                    % Rescale fit parameters and residuals
-                    if MRS_struct.p.TE(ii) < 100 % MM (190613)
-                        GaussModelParam([1 4 7 10 13 16 17 18]) = GaussModelParam([1 4 7 10 13 16 17 18]) * maxinGSH;
-                    else
-                        GaussModelParam([1 4 7 10 13 16 19 20 21]) = GaussModelParam([1 4 7 10 13 16 19 20 21]) * maxinGSH;
-                    end
-                    resid = resid * maxinGSH;
-                    residPlot = residPlot * maxinGSH;
-                    
-                    GSHGaussModelParam = GaussModelParam;
-                    if MRS_struct.p.TE(ii) < 100 % MM (190613)
-                        GSHGaussModelParam(4:3:13) = 0;
-                    else
-                        GSHGaussModelParam(4:3:16) = 0;
-                    end
-                    
-                    BaselineModelParam = GSHGaussModelParam;
-                    BaselineModelParam(1) = 0;
-                    
-                    MRS_struct.out.(vox{kk}).(target{jj}).Area(ii) = real(sum(FiveGaussModel(GSHGaussModelParam, freq(freqbounds)) - FiveGaussModel(BaselineModelParam, freq(freqbounds)))) ...
-                        * abs(freq(1)-freq(2));
-                    GSHheight = GSHGaussModelParam(1);
-                    
-                    % Range to determine residuals for GSH
-                    residfreq = freq(freqbounds);
-                    residGSH = resid(residfreq <= 3.3 & residfreq >= 2.82);
-                    
-                    MRS_struct.out.(vox{kk}).(target{jj}).FitError(ii) = 100*std(residGSH)/GSHheight;
-                    sigma = sqrt(1/(2*(abs(GSHGaussModelParam(2)))));
-                    MRS_struct.out.(vox{kk}).(target{jj}).FWHM(ii) =  abs((2*MRS_struct.p.LarmorFreq(ii))*sigma);
-                    MRS_struct.out.(vox{kk}).(target{jj}).ModelParam(ii,:) = GaussModelParam;
-                    MRS_struct.out.(vox{kk}).(target{jj}).Resid(ii,:) = residGSH;
-                    
-                    % Calculate SNR of GSH signal
-                    noiseSigma_DIFF = CalcNoise(freq, DIFF(ii,:));
-                    MRS_struct.out.(vox{kk}).(target{jj}).SNR(ii) = abs(GSHheight)/noiseSigma_DIFF;
-                    
-                elseif strcmp(target{jj},'Lac')
-                    
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    %   Lac
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    
-                    freqbounds = find(freq <= 1.8 & freq >= 0.5);
-                    plotbounds = find(freq <= 2 & freq >= 0);
-                    
-                    offset = (mean(real(DIFF(ii,freqbounds(1:10))),2) + mean(real(DIFF(ii,freqbounds((end-9):end))),2))/2;
-                    slope = (mean(real(DIFF(ii,freqbounds(1:10))),2) - mean(real(DIFF(ii,freqbounds((end-9):end))),2))/abs(freq(freqbounds(1)) - freq(freqbounds(end)));
-                    peak_amp = 0.03; % Presumably this won't work for some data... for now it seems to work
-                    
-                    FourGaussModelInit = [peak_amp*0.16 -100 1.18 peak_amp*0.3 -1000 1.325 offset slope 0];
-                    lb = [0 -300 0.9 0 -5000 1.0  -1 -1 -1];
-                    ub = [1 0 1.4 1 0 1.6 1 1 1];
-                    
-                    FourGaussModelInit = lsqcurvefit(@FourGaussModel, FourGaussModelInit, freq(freqbounds), real(DIFF(ii,freqbounds)), lb, ub,lsqopts);
-                    [FourGaussModelParam, resid] = nlinfit(freq(freqbounds), real(DIFF(ii,freqbounds)), @FourGaussModel, FourGaussModelInit, nlinopts);
-                    
-                    MRS_struct.out.(vox{kk}).Lac.ModelParam(ii,:) = FourGaussModelParam;
-                    %LacGaussModelParam = FourGaussModelParam;
-                    %LacGaussModelParam(1) = 0;
-                    MMGaussModelParam = FourGaussModelParam;
-                    MMGaussModelParam(4) = 0;
-                    
-                    MRS_struct.out.(vox{kk}).Lac.Area(ii) = real(sum(FourGaussModel([FourGaussModelParam(1:6) 0 0 0],freq(freqbounds)))) * abs(freq(1)-freq(2)); % NB: this is Lac+MM
-                    Lacheight = FourGaussModelParam(4);
-                    MRS_struct.out.(vox{kk}).Lac.FitError(ii) = 100*std(resid)/Lacheight;
-                    MRS_struct.out.(vox{kk}).Lac.FWHM(ii) = NaN; % MM (170818): Still need to calculate FWHM
-                    MRS_struct.out.(vox{kk}).Lac.Resid(ii,:) = resid;
-                    
-                    % Calculate SNR of Lac signal (MM: 170502)
-                    noiseSigma_DIFF = CalcNoise(freq, DIFF(ii,:));
-                    MRS_struct.out.(vox{kk}).Lac.SNR(ii) = abs(Lacheight)/noiseSigma_DIFF;
-                    
-                elseif strcmp(target{jj},'Glx')
-                    
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    %   Glx
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    
-                    freqbounds = find(freq <= 4.1 & freq >= 3.45);
-                    plotbounds = find(freq <= 4.5 & freq >= 3);
-                    
-                    maxinGABA = max(real(DIFF(ii,freqbounds)));
-                    grad_points = (real(DIFF(ii,freqbounds(end))) - real(DIFF(ii,freqbounds(1)))) ./ abs(freqbounds(end) - freqbounds(1));
-                    LinearInit = grad_points ./ abs(freq(1) - freq(2));
-                    constInit = (real(DIFF(ii,freqbounds(end))) + real(DIFF(ii,freqbounds(1))))./2;
-                    
-                    GaussModelInit = [maxinGABA -90 3.72 maxinGABA -90 3.77 -LinearInit constInit];
-                    lb = [0 -200 3.72-0.01 0 -200 3.77-0.01 -40*maxinGABA -2000*maxinGABA];
-                    ub = [4000*maxinGABA -40 3.72+0.01 4000*maxinGABA -40 3.77+0.01 40*maxinGABA 1000*maxinGABA];
-                    
-                    GaussModelInit = lsqcurvefit(@DoubleGaussModel, GaussModelInit, freq(freqbounds), real(DIFF(ii,freqbounds)), lb, ub, lsqopts);
-                    [GaussModelParam, resid] = nlinfit(freq(freqbounds), real(DIFF(ii,freqbounds)), @DoubleGaussModel, GaussModelInit, nlinopts);
-                    
-                    Glxheight = max(GaussModelParam([1,4]));
-                    MRS_struct.out.(vox{kk}).(target{jj}).FitError(ii) = 100*std(resid)/Glxheight;
-                    MRS_struct.out.(vox{kk}).(target{jj}).Area(ii) = (GaussModelParam(1)./sqrt(-GaussModelParam(2))*sqrt(pi)) + ...
-                        (GaussModelParam(4)./sqrt(-GaussModelParam(5))*sqrt(pi));
-                    sigma = ((1/(2*(abs(GaussModelParam(2))))).^(1/2)) + ((1/(2*(abs(GaussModelParam(5))))).^(1/2));
-                    MRS_struct.out.(vox{kk}).(target{jj}).FWHM(ii) = abs((2*MRS_struct.p.LarmorFreq(ii))*sigma);
-                    MRS_struct.out.(vox{kk}).(target{jj}).ModelParam(ii,:) = GaussModelParam;
-                    MRS_struct.out.(vox{kk}).(target{jj}).Resid(ii,:) = resid;
-                    
-                    % Calculate SNR of Glx signal
-                    noiseSigma_DIFF = CalcNoise(freq, DIFF(ii,:));
-                    MRS_struct.out.(vox{kk}).Glx.SNR(ii) = abs(Glxheight)/noiseSigma_DIFF;
-                    
-                elseif strcmp(target{jj},'GABAGlx')
-                    
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    %   GABA+Glx
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    
-                    freqbounds = find(freq <= 4.1 & freq >= 2.79);
-                    plotbounds = find(freq <= 4.2 & freq >= 2.7);
-                    
-                    GABAbounds = freq <= 3.2 & freq >= 2.79;
-                    Glxbounds  = freq <= 4.1 & freq >= 3.4;
-                    
-                    maxinGABA = max(real(DIFF(ii,GABAbounds)));
-                    maxinGlx = max(real(DIFF(ii,Glxbounds)));
-                    grad_points = (real(DIFF(ii,freqbounds(end))) - real(DIFF(ii,freqbounds(1)))) ./ abs(freqbounds(end) - freqbounds(1));
-                    LinearInit = grad_points ./ abs(freq(1) - freq(2));
-                    
-                    GaussModelInit = [maxinGlx -700 3.71 maxinGlx -700 3.79 maxinGABA -90 3.02 -LinearInit 0 0];
-                    GaussModelInit([1 4 7 10]) = GaussModelInit([1 4 7 10]) / maxinGlx; % Scale initial conditions to avoid warnings about numerical underflow
-                    
-                    lb = [-4000*maxinGlx -1000 3.71-0.02 -4000*maxinGlx -1000 3.79-0.02 -4000*maxinGABA -200 3.02-0.05 -40*maxinGABA -2000*maxinGABA -2000*maxinGABA];
-                    ub = [4000*maxinGlx -40 3.71+0.02 4000*maxinGlx -40 3.79+0.02 4000*maxinGABA -40 3.02+0.05 40*maxinGABA 1000*maxinGABA 1000*maxinGABA];
-                    lb([1 4 7 10]) = lb([1 4 7 10]) / maxinGlx;
-                    ub([1 4 7 10]) = ub([1 4 7 10]) / maxinGlx;
-                    
-                    % Down-weight Cho subtraction artifact and (if HERMES)
-                    % signals downfield of Glx by including observation weights
-                    % in nonlinear regression; improves accuracy of peak
-                    % fittings (MM: 170701 - thanks to Alex Craven of
-                    % University of Bergen for this idea)
-                    w = ones(size(DIFF(ii,freqbounds)));
-                    residfreq = freq(freqbounds);
-                    ChoRange = residfreq >= 3.16 & residfreq <= 3.285;
-                    GlxDownFieldRange = residfreq >= 3.9 & residfreq <= 4.2;
-                    if MRS_struct.p.HERMES && any(strcmp(MRS_struct.p.vendor,{'Philips','Philips_data','Philips_raw'}))
-                        weightRange = ChoRange | GlxDownFieldRange;
-                    else
-                        weightRange = ChoRange;
-                    end
-                    w(weightRange) = 0.001;
-                    
-                    % Weighted least-squares model fitting
-                    GaussModelInit = lsqcurvefit(@GABAGlxModel, GaussModelInit, freq(freqbounds), real(DIFF(ii,freqbounds)) / maxinGlx, lb, ub, lsqopts);
-                    modelFun_w = @(x,freq) sqrt(w) .* GABAGlxModel(x,freq); % add weights to the model
-                    [GaussModelParam, resid] = nlinfit(freq(freqbounds), sqrt(w) .* real(DIFF(ii,freqbounds)) / maxinGlx, modelFun_w, GaussModelInit, nlinopts); % add weights to the data
-                    [~, residPlot] = nlinfit(freq(freqbounds), real(DIFF(ii,freqbounds)) / maxinGlx, @GABAGlxModel, GaussModelParam, nlinopts); % re-run for residuals for output figure
-                    
-                    % Rescale fit parameters and residuals
-                    GaussModelParam([1 4 7 10 11 12]) = GaussModelParam([1 4 7 10 11 12]) * maxinGlx;
-                    resid = resid * maxinGlx;
-                    residPlot = residPlot * maxinGlx;
-                    
-                    % Range to determine residuals for GABA and Glx
-                    residGABA = resid(residfreq <= 3.55 & residfreq >= 2.79);
-                    residGlx = resid(residfreq <= 4.10 & residfreq >= 3.45);
-                    
-                    % GABA fitting output
-                    MRS_struct.out.(vox{kk}).GABA.Area(ii) = (GaussModelParam(7)./sqrt(-GaussModelParam(8))*sqrt(pi));
-                    GABAheight = GaussModelParam(7);
-                    MRS_struct.out.(vox{kk}).GABA.FitError(ii) = 100*std(residGABA)/GABAheight;
-                    sigma = sqrt(1/(2*(abs(GaussModelParam(8)))));
-                    MRS_struct.out.(vox{kk}).GABA.FWHM(ii) = abs((2*MRS_struct.p.LarmorFreq(ii))*sigma);
-                    MRS_struct.out.(vox{kk}).GABA.ModelParam(ii,:) = GaussModelParam;
-                    MRS_struct.out.(vox{kk}).GABA.Resid(ii,:) = residGABA;
-                    
-                    % Calculate SNR of GABA signal
-                    noiseSigma_DIFF = CalcNoise(freq, DIFF(ii,:));
-                    MRS_struct.out.(vox{kk}).GABA.SNR(ii) = abs(GABAheight)/noiseSigma_DIFF;
-                    
-                    % Glx fitting output
-                    MRS_struct.out.(vox{kk}).Glx.Area(ii) = (GaussModelParam(1)./sqrt(-GaussModelParam(2))*sqrt(pi)) + ...
-                        (GaussModelParam(4)./sqrt(-GaussModelParam(5))*sqrt(pi));
-                    Glxheight = max(GaussModelParam([1,4]));
-                    MRS_struct.out.(vox{kk}).Glx.FitError(ii) = 100*std(residGABA)/Glxheight;
-                    sigma = sqrt(1/(2*(abs(GaussModelParam(2))))) + sqrt(1/(2*(abs(GaussModelParam(5)))));
-                    MRS_struct.out.(vox{kk}).Glx.FWHM(ii) = abs((2*MRS_struct.p.LarmorFreq(ii))*sigma);
-                    MRS_struct.out.(vox{kk}).Glx.ModelParam(ii,:) = GaussModelParam;
-                    MRS_struct.out.(vox{kk}).Glx.Resid(ii,:) = residGlx;
-                    
-                    % Calculate SNR of Glx signal
-                    MRS_struct.out.(vox{kk}).Glx.SNR(ii) = abs(Glxheight)/noiseSigma_DIFF;
-                    
-                elseif strcmp(target{jj},'EtOH')
-                    
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    %   EtOH
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    
-                    freqbounds = find(freq <= 1.8 & freq >= 0.6);
-                    plotbounds = find(freq <= 1.9 & freq >= 0.4);
-                    
-                    maxinEtOH = max(real(DIFF(ii,freqbounds)));
-                    grad_points = (real(DIFF(ii,freqbounds(end))) - real(DIFF(ii,freqbounds(1)))) ./ abs(freqbounds(end) - freqbounds(1));
-                    LinearInit = grad_points ./ abs(freq(1) - freq(2));
-                    
-                    LorentzModelInit = [maxinEtOH 1.11 1/500 ...
-                        maxinEtOH 1.23 1/500 ...
-                        -LinearInit 0];
-                    LorentzModelInit([1 4 7]) = LorentzModelInit([1 4 7]) / maxinEtOH; % Scale initial conditions to avoid warnings about numerical underflow
-                    
-                    lb = [0             1.11-0.01 1/700 0             1.23-0.01 1/700 -40*maxinEtOH -2e3*maxinEtOH];
-                    ub = [100*maxinEtOH 1.11+0.01 1/300 100*maxinEtOH 1.23+0.01 1/300  40*maxinEtOH  1e3*maxinEtOH];
-                    
-                    lb([1 4 7]) = lb([1 4 7]) / maxinEtOH;
-                    ub([1 4 7]) = ub([1 4 7]) / maxinEtOH;
-                    
-                    % Down-weight co-edited Lac signal by including observation
-                    % weights in nonlinear regression
-                    w = ones(size(DIFF(ii,freqbounds)));
-                    residfreq = freq(freqbounds);
-                    LacRange = residfreq >= 1.29 & residfreq <= 1.51;
-                    weightRange = LacRange;
-                    w(weightRange) = 0.001;
-                    
-                    % Weighted least-squares model fitting
-                    LorentzModelInit = lsqcurvefit(@EtOHModel, LorentzModelInit, freq(freqbounds), real(DIFF(ii,freqbounds)) / maxinEtOH, lb, ub, lsqopts);
-                    modelFun_w = @(x,freq) sqrt(w) .* EtOHModel(x,freq); % add weights to the model
-                    [LorentzModelParam, resid] = nlinfit(freq(freqbounds), sqrt(w) .* real(DIFF(ii,freqbounds)) / maxinEtOH, modelFun_w, LorentzModelInit, nlinopts); % add weights to the data
-                    [~, residPlot] = nlinfit(freq(freqbounds), real(DIFF(ii,freqbounds)) / maxinEtOH, @EtOHModel, LorentzModelParam, nlinopts); % re-run for residuals for output figure
-                    
-                    % Rescale fit parameters and residuals
-                    LorentzModelParam([1 4 7 8]) = LorentzModelParam([1 4 7 8]) * maxinEtOH;
-                    resid = resid * maxinEtOH;
-                    residPlot = residPlot * maxinEtOH;
-                    
-                    EtOHheight = max(EtOHModel([LorentzModelParam(1:end-2) 0 0],freq(freqbounds)));
-                    MRS_struct.out.(vox{kk}).(target{jj}).FitError(ii) = 100*std(resid)/EtOHheight;
-                    MRS_struct.out.(vox{kk}).(target{jj}).Area(ii) = sum(EtOHModel([LorentzModelParam(1:end-2) 0 0],freq(freqbounds))) * abs(freq(1)-freq(2));
-                    
-                    MRS_struct.out.(vox{kk}).(target{jj}).FWHM(ii) = (LorentzModelParam(3) + LorentzModelParam(6)) * MRS_struct.p.LarmorFreq(ii);
-                    MRS_struct.out.(vox{kk}).(target{jj}).ModelParam(ii,:) = LorentzModelParam;
-                    MRS_struct.out.(vox{kk}).(target{jj}).Resid(ii,:) = resid;
-                    
-                    noiseSigma_DIFF = CalcNoise(freq, DIFF(ii,:));
-                    MRS_struct.out.(vox{kk}).EtOH.SNR(ii) = abs(EtOHheight)/noiseSigma_DIFF;
-                    
-                else
-                    
-                    error('Fitting %s not recognised',target{jj});
-                    
+                        
+                        % Weighted least-squares model fitting
+                        LorentzModelInit = lsqcurvefit(@EtOHModel, LorentzModelInit, freq(freqbounds), real(DIFF(ii,freqbounds)) / maxinEtOH, lb, ub, lsqopts);
+                        modelFun_w = @(x,freq) sqrt(w) .* EtOHModel(x,freq); % add weights to the model
+                        [LorentzModelParam, resid] = nlinfit(freq(freqbounds), sqrt(w) .* real(DIFF(ii,freqbounds)) / maxinEtOH, modelFun_w, LorentzModelInit, nlinopts); % add weights to the data
+                        [~, residPlot] = nlinfit(freq(freqbounds), real(DIFF(ii,freqbounds)) / maxinEtOH, @EtOHModel, LorentzModelParam, nlinopts); % re-run for residuals for output figure
+                        
+                        % Rescale fit parameters and residuals
+                        LorentzModelParam([1 4 7 8]) = LorentzModelParam([1 4 7 8]) * maxinEtOH;
+                        resid = resid * maxinEtOH;
+                        residPlot = residPlot * maxinEtOH;
+                        
+                        EtOHheight = max(EtOHModel([LorentzModelParam(1:end-2) 0 0],freq(freqbounds)));
+                        MRS_struct.out.(vox{kk}).(target{jj}).FitError(ii) = 100*std(resid)/EtOHheight;
+                        MRS_struct.out.(vox{kk}).(target{jj}).Area(ii) = sum(EtOHModel([LorentzModelParam(1:end-2) 0 0],freq(freqbounds))) * abs(freq(1)-freq(2));
+                        
+                        MRS_struct.out.(vox{kk}).(target{jj}).FWHM(ii) = (LorentzModelParam(3) + LorentzModelParam(6)) * MRS_struct.p.LarmorFreq(ii);
+                        MRS_struct.out.(vox{kk}).(target{jj}).ModelParam(ii,:) = LorentzModelParam;
+                        MRS_struct.out.(vox{kk}).(target{jj}).Resid(ii,:) = resid;
+                        
+                        noiseSigma_DIFF = CalcNoise(freq, DIFF(ii,:));
+                        MRS_struct.out.(vox{kk}).EtOH.SNR(ii) = abs(EtOHheight)/noiseSigma_DIFF;
+                        
+                    otherwise
+                        
+                        error('Fitting %s not recognised',target{jj});
+                        
                 end
                 
                 
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                %   1a. Start up the output figure
+                %   1a. Initialize the output figure
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                 
                 if ishandle(102)
@@ -536,7 +536,7 @@ for kk = 1:length(vox)
                 end
                 h = figure(102);
                 % Open figure in center of screen
-                scr_sz = get(0, 'ScreenSize');
+                scr_sz = get(0,'ScreenSize');
                 fig_w = 1000;
                 fig_h = 707;
                 set(h,'Position',[(scr_sz(3)-fig_w)/2, (scr_sz(4)-fig_h)/2, fig_w, fig_h]);
@@ -585,7 +585,6 @@ for kk = 1:length(vox)
                     case 'Lac'
                         plot(freq(plotbounds), real(DIFF(ii,plotbounds)), 'b', ...
                             freq(freqbounds), FourGaussModel(FourGaussModelParam,freq(freqbounds)), 'r', ...
-                            freq(freqbounds), FourGaussModel(MMGaussModelParam,freq(freqbounds)), 'r' , ...
                             freq(freqbounds), resid, 'k');
                         set(gca,'XLim',[0 2.1]);
                         
@@ -645,12 +644,21 @@ for kk = 1:length(vox)
                         labelbounds = freq <= 2.4 & freq >= 1.75;
                         tailtop = max(real(DIFF(ii,labelbounds)));
                         tailbottom = min(real(DIFF(ii,labelbounds)));
-                        text(2.25, min(resid),'residual', 'HorizontalAlignment', 'left');
+                        text(2.25, min(resid), 'residual', 'HorizontalAlignment', 'left');
                         text(2.25, tailtop+metabmax/20, 'data', 'Color', [0 0 1]);
                         text(2.45, tailbottom-20*metabmax/20, 'model', 'Color', [1 0 0]);
                         if length(MRS_struct.p.target) == 3 && all(ismember(MRS_struct.p.target,{'EtOH','GABA','GSH'}))
                             text(3.3, max(residPlot)+0.5*abs(max(residPlot)-min(residPlot)), 'weighted', 'Color', [255 160 64]/255, 'HorizontalAlignment', 'right');
                         end
+                        
+                    case 'Lac'
+                        text(1.22, metabmax/5, 'Lac+MM', 'HorizontalAlignment', 'center');
+                        labelbounds = freq <= 0.89 & freq >= 0;
+                        tailtop = max(real(DIFF(ii,labelbounds)));
+                        tailbottom = min(real(DIFF(ii,labelbounds)));
+                        text(0.85, min(resid), 'residual', 'HorizontalAlignment', 'left');
+                        text(0.85, tailtop+metabmax/20, 'data', 'Color', [0 0 1]);
+                        text(0.85, tailbottom, 'model', 'Color', [1 0 0]);
                         
                     case 'Glx'
                         text(3.8, metabmax/4, target{jj}, 'HorizontalAlignment', 'center');
@@ -673,7 +681,7 @@ for kk = 1:length(vox)
                         text(3.2, min(residPlot)-0.5*abs(max(residPlot)), 'weighted', 'Color', [255 160 64]/255, 'HorizontalAlignment', 'center');
                         
                     case 'EtOH'
-                        text(1.45,metabmax/4,target{jj}, 'HorizontalAlignment', 'center');
+                        text(1.45, metabmax/4, target{jj}, 'HorizontalAlignment', 'center');
                         labelbounds = freq <= 0.9 & freq >= 0.5;
                         tailtop = max(real(DIFF(ii,labelbounds)));
                         tailbottom = min(real(DIFF(ii,labelbounds)));
@@ -1051,11 +1059,11 @@ for kk = 1:length(vox)
                 
                 % 1. Filename
                 if strcmp(MRS_struct.p.vendor,'Siemens_rda')
-                    [~,tmp,tmp2] = fileparts(MRS_struct.metabfile{ii*2-1});
+                    [~,tmp1,tmp2] = fileparts(MRS_struct.metabfile{ii*2-1});
                 else
-                    [~,tmp,tmp2] = fileparts(MRS_struct.metabfile{ii});
+                    [~,tmp1,tmp2] = fileparts(MRS_struct.metabfile{ii});
                 end
-                fname = [tmp tmp2];
+                fname = [tmp1 tmp2];
                 if length(fname) > 30
                     fname = [fname(1:30) '...'];
                 end
@@ -1068,197 +1076,205 @@ for kk = 1:length(vox)
                 
                 switch target{jj}
                     case 'GABA'
-                        tmp2 = 'GABA+: ';
-                        tmp3 = sprintf('%.3g', MRS_struct.out.(vox{kk}).GABA.Area(ii));
+                        tmp1 = 'GABA+: ';
+                        tmp2 = sprintf('%.3g', MRS_struct.out.(vox{kk}).GABA.Area(ii));
                     case 'Glx'
-                        tmp2 = 'Glx: ';
-                        tmp3 = sprintf('%.3g', MRS_struct.out.(vox{kk}).Glx.Area(ii));
+                        tmp1 = 'Glx: ';
+                        tmp2 = sprintf('%.3g', MRS_struct.out.(vox{kk}).Glx.Area(ii));
                     case 'GABAGlx'
-                        tmp2 = 'GABA+: ';
-                        tmp3 = sprintf('%.3g', MRS_struct.out.(vox{kk}).GABA.Area(ii));
-                        tmp4 = 'Glx: ';
-                        tmp5 = sprintf('%.3g', MRS_struct.out.(vox{kk}).Glx.Area(ii));
+                        tmp1 = 'GABA+: ';
+                        tmp2 = sprintf('%.3g', MRS_struct.out.(vox{kk}).GABA.Area(ii));
+                        tmp3 = 'Glx: ';
+                        tmp4 = sprintf('%.3g', MRS_struct.out.(vox{kk}).Glx.Area(ii));
                     case 'GSH'
-                        tmp2 = 'GSH: ';
-                        tmp3 = sprintf('%.3g', MRS_struct.out.(vox{kk}).(target{jj}).Area(ii));
+                        tmp1 = 'GSH: ';
+                        tmp2 = sprintf('%.3g', MRS_struct.out.(vox{kk}).(target{jj}).Area(ii));
                     case 'Lac'
-                        tmp2 = 'Lac: ';
-                        tmp3 = sprintf('%.3g', MRS_struct.out.(vox{kk}).(target{jj}).Area(ii));
+                        tmp1 = 'Lac+MM: ';
+                        tmp2 = sprintf('%.3g', MRS_struct.out.(vox{kk}).(target{jj}).Area(ii));
                     case 'EtOH'
-                        tmp2 = 'EtOH: ';
-                        tmp3 = sprintf('%.3g', MRS_struct.out.(vox{kk}).(target{jj}).Area(ii));
+                        tmp1 = 'EtOH: ';
+                        tmp2 = sprintf('%.3g', MRS_struct.out.(vox{kk}).(target{jj}).Area(ii));
                 end
+                
+                text(0.4, text_pos-2*shift, tmp1, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                text(0.425, text_pos-2*shift, tmp2, 'FontName', 'Arial', 'FontSize', 10);
+                
                 if strcmp(target{jj},'GABAGlx')
-                    text(0.4, text_pos-2*shift, tmp2, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                    text(0.425, text_pos-2*shift, tmp3, 'FontName', 'Arial', 'FontSize', 10);
-                    text(0.4, text_pos-3*shift, tmp4, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                    text(0.425, text_pos-3*shift, tmp5, 'FontName', 'Arial', 'FontSize', 10);
+                    text(0.4, text_pos-3*shift, tmp3, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                    text(0.425, text_pos-3*shift, tmp4, 'FontName', 'Arial', 'FontSize', 10);
                     n = 0;
                 else
-                    text(0.4, text_pos-2*shift, tmp2, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                    text(0.425, text_pos-2*shift, tmp3, 'FontName', 'Arial', 'FontSize', 10);
                     n = shift;
                 end
                 
                 if strcmp(MRS_struct.p.Reference_compound,'H2O')
                     
                     % 2b. Area (Water / Cr)
-                    tmp1 = 'Water: ';
-                    tmp2 = sprintf('%.3g', MRS_struct.out.(vox{kk}).water.Area(ii));
-                    tmp3 = 'Cr: ';
-                    tmp4 = sprintf('%.3g', MRS_struct.out.(vox{kk}).Cr.Area(ii));
+                    tmp1 = sprintf('%.3g', MRS_struct.out.(vox{kk}).water.Area(ii));
+                    tmp2 = sprintf('%.3g', MRS_struct.out.(vox{kk}).Cr.Area(ii));
                     
-                    text(0.4, text_pos-4*shift+n, tmp1, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                    text(0.425, text_pos-4*shift+n, tmp2, 'FontName', 'Arial', 'FontSize', 10);
-                    text(0.4, text_pos-5*shift+n, tmp3, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                    text(0.425, text_pos-5*shift+n, tmp4, 'FontName', 'Arial', 'FontSize', 10);
+                    text(0.4, text_pos-4*shift+n, 'Water: ', 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                    text(0.425, text_pos-4*shift+n, tmp1, 'FontName', 'Arial', 'FontSize', 10);
+                    text(0.4, text_pos-5*shift+n, 'Cr: ', 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                    text(0.425, text_pos-5*shift+n, tmp2, 'FontName', 'Arial', 'FontSize', 10);
                     
                     % 3. FWHM
-                    tmp1 = 'FWHM  ';
-                    text(0.4, text_pos-6*shift+n, tmp1, 'FontName', 'Arial', 'FontSize', 10, 'FontWeight', 'bold', 'HorizontalAlignment', 'right');
+                    text(0.4, text_pos-6*shift+n, 'FWHM  ', 'FontName', 'Arial', 'FontSize', 10, 'FontWeight', 'bold', 'HorizontalAlignment', 'right');
                     
-                    tmp2 = sprintf('%.2f Hz', MRS_struct.out.(vox{kk}).water.FWHM(ii));
-                    tmp3 = sprintf('%.2f Hz', MRS_struct.out.(vox{kk}).Cr.FWHM(ii));
+                    tmp1 = sprintf('%.2f Hz', MRS_struct.out.(vox{kk}).water.FWHM(ii));
+                    tmp2 = sprintf('%.2f Hz', MRS_struct.out.(vox{kk}).Cr.FWHM(ii));
                     text(0.4, text_pos-7*shift+n, 'Water: ', 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                    text(0.425, text_pos-7*shift+n, tmp2, 'FontName', 'Arial', 'FontSize', 10);
+                    text(0.425, text_pos-7*shift+n, tmp1, 'FontName', 'Arial', 'FontSize', 10);
                     text(0.4, text_pos-8*shift+n, 'Cr: ', 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                    text(0.425, text_pos-8*shift+n, tmp3, 'FontName', 'Arial', 'FontSize', 10);
+                    text(0.425, text_pos-8*shift+n, tmp2, 'FontName', 'Arial', 'FontSize', 10);
                     
                     % 4a. Fit Error
-                    tmp1 = 'Fit Error  ';
-                    text(0.4, text_pos-9*shift+n, tmp1, 'FontName', 'Arial', 'FontSize', 10, 'FontWeight', 'bold', 'HorizontalAlignment', 'right');
+                    text(0.4, text_pos-9*shift+n, 'Fit Error  ', 'FontName', 'Arial', 'FontSize', 10, 'FontWeight', 'bold', 'HorizontalAlignment', 'right');
                     
                     switch target{jj}
                         
                         case {'GABA','Glx','GSH','Lac','EtOH'}
                             % 4b. Fit Error
                             if strcmpi(target{jj},'GABA')
-                                tmp2 = 'GABA+,Water: ';
-                                tmp3 = 'GABA+,Cr: ';
+                                tmp1 = 'GABA+,Water: ';
+                                tmp2 = 'GABA+,Cr: ';
+                            elseif strcmpi(target{jj},'Lac')
+                                tmp1 = 'Lac+MM,Water: ';
+                                tmp2 = 'Lac+MM,Cr: ';
                             else
-                                tmp2 = sprintf('%s,Water: ', target{jj});
-                                tmp3 = sprintf('%s,Cr: ', target{jj});
+                                tmp1 = sprintf('%s,Water: ', target{jj});
+                                tmp2 = sprintf('%s,Cr: ', target{jj});
                             end
-                            tmp4 = sprintf('%.2f%%', MRS_struct.out.(vox{kk}).(target{jj}).FitError_W(ii));
-                            tmp5 = sprintf('%.2f%%', MRS_struct.out.(vox{kk}).(target{jj}).FitError_Cr(ii));
+                            tmp3 = sprintf('%.2f%%', MRS_struct.out.(vox{kk}).(target{jj}).FitError_W(ii));
+                            tmp4 = sprintf('%.2f%%', MRS_struct.out.(vox{kk}).(target{jj}).FitError_Cr(ii));
                             
-                            text(0.4, text_pos-10*shift+n, tmp2, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                            text(0.425, text_pos-10*shift+n, tmp4, 'FontName', 'Arial', 'FontSize', 10);
-                            text(0.4, text_pos-11*shift+n, tmp3, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                            text(0.425, text_pos-11*shift+n, tmp5, 'FontName', 'Arial', 'FontSize', 10);
+                            text(0.4, text_pos-10*shift+n, tmp1, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                            text(0.425, text_pos-10*shift+n, tmp3, 'FontName', 'Arial', 'FontSize', 10);
+                            text(0.4, text_pos-11*shift+n, tmp2, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                            text(0.425, text_pos-11*shift+n, tmp4, 'FontName', 'Arial', 'FontSize', 10);
                             
                             % 5. Quantification
-                            tmp1 = 'Quantification';
+                            text(0.4, text_pos-12*shift+n, 'Quantification  ', 'FontName', 'Arial', 'FontSize', 10, 'FontWeight', 'bold', 'HorizontalAlignment', 'right');
+                            
                             if strcmpi(target{jj},'GABA')
-                                tmp2 = 'GABA+/Water: ';
-                                tmp4 = 'GABA+/Cr: ';
+                                tmp1 = 'GABA+/Water: ';
+                                tmp2 = 'GABA+/Cr: ';
+                            elseif strcmpi(target{jj},'Lac')
+                                tmp1 = 'Lac+MM/Water: ';
+                                tmp2 = 'Lac+MM/Cr: ';
                             else
-                                tmp2 = sprintf('%s/Water: ', target{jj});
-                                tmp4 = sprintf('%s/Cr: ', target{jj});
+                                tmp1 = sprintf('%s/Water: ', target{jj});
+                                tmp2 = sprintf('%s/Cr: ', target{jj});
                             end
                             tmp3 = sprintf('%.2f i.u.', MRS_struct.out.(vox{kk}).(target{jj}).ConcIU(ii));
-                            tmp5 = sprintf('%.2f', MRS_struct.out.(vox{kk}).(target{jj}).ConcCr(ii));
+                            tmp4 = sprintf('%.2f', MRS_struct.out.(vox{kk}).(target{jj}).ConcCr(ii));
                             
-                            text(0.4, text_pos-12*shift+n, tmp1, 'FontName', 'Arial', 'FontSize', 10, 'FontWeight', 'bold', 'HorizontalAlignment', 'right');
-                            text(0.4, text_pos-13*shift+n, tmp2, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                            text(0.4, text_pos-13*shift+n, tmp1, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
                             text(0.425, text_pos-13*shift+n, tmp3, 'FontName', 'Arial', 'FontSize', 10);
-                            text(0.4, text_pos-14*shift+n, tmp4, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                            text(0.425, text_pos-14*shift+n, tmp5, 'FontName', 'Arial', 'FontSize', 10);
+                            text(0.4, text_pos-14*shift+n, tmp2, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                            text(0.425, text_pos-14*shift+n, tmp4, 'FontName', 'Arial', 'FontSize', 10);
+                            
                             n = 5*shift;
                             
                         case 'GABAGlx'
                             % 4b. Fit Error
-                            tmp2 = 'GABA+,Water: ';
-                            tmp3 = 'GABA+,Cr: ';
-                            tmp4 = sprintf('%.2f%%', MRS_struct.out.(vox{kk}).GABA.FitError_W(ii));
-                            tmp5 = sprintf('%.2f%%', MRS_struct.out.(vox{kk}).GABA.FitError_Cr(ii));
-                            tmp6 = 'Glx,Water: ';
-                            tmp7 = 'Glx,Cr: ';
-                            tmp8 = sprintf('%.2f%%', MRS_struct.out.(vox{kk}).Glx.FitError_W(ii));
-                            tmp9 = sprintf('%.2f%%', MRS_struct.out.(vox{kk}).Glx.FitError_Cr(ii));
+                            tmp1 = 'GABA+,Water: ';
+                            tmp2 = 'GABA+,Cr: ';
+                            tmp3 = sprintf('%.2f%%', MRS_struct.out.(vox{kk}).GABA.FitError_W(ii));
+                            tmp4 = sprintf('%.2f%%', MRS_struct.out.(vox{kk}).GABA.FitError_Cr(ii));
+                            tmp5 = 'Glx,Water: ';
+                            tmp6 = 'Glx,Cr: ';
+                            tmp7 = sprintf('%.2f%%', MRS_struct.out.(vox{kk}).Glx.FitError_W(ii));
+                            tmp8 = sprintf('%.2f%%', MRS_struct.out.(vox{kk}).Glx.FitError_Cr(ii));
                             
-                            text(0.4, text_pos-10*shift, tmp2, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                            text(0.425, text_pos-10*shift, tmp4, 'FontName', 'Arial', 'FontSize', 10);
-                            text(0.4, text_pos-11*shift, tmp3, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                            text(0.425, text_pos-11*shift, tmp5, 'FontName', 'Arial', 'FontSize', 10);
-                            text(0.4, text_pos-12*shift, tmp6, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                            text(0.425, text_pos-12*shift, tmp8, 'FontName', 'Arial', 'FontSize', 10);
-                            text(0.4, text_pos-13*shift, tmp7, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                            text(0.425, text_pos-13*shift, tmp9, 'FontName', 'Arial', 'FontSize', 10);
+                            text(0.4, text_pos-10*shift, tmp1, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                            text(0.425, text_pos-10*shift, tmp3, 'FontName', 'Arial', 'FontSize', 10);
+                            text(0.4, text_pos-11*shift, tmp2, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                            text(0.425, text_pos-11*shift, tmp4, 'FontName', 'Arial', 'FontSize', 10);
+                            text(0.4, text_pos-12*shift, tmp5, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                            text(0.425, text_pos-12*shift, tmp7, 'FontName', 'Arial', 'FontSize', 10);
+                            text(0.4, text_pos-13*shift, tmp6, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                            text(0.425, text_pos-13*shift, tmp8, 'FontName', 'Arial', 'FontSize', 10);
                             
                             % 5. Quantification
-                            tmp1 = 'Quantification  ';
-                            tmp2 = 'GABA+/Water: ';
-                            tmp3 = sprintf('%.2f i.u.', MRS_struct.out.(vox{kk}).GABA.ConcIU(ii));
-                            tmp4 = 'GABA+/Cr: ';
-                            tmp5 = sprintf('%.2f', MRS_struct.out.(vox{kk}).GABA.ConcCr(ii));
-                            tmp6 = 'Glx/Water: ';
-                            tmp7 = sprintf('%.2f i.u.', MRS_struct.out.(vox{kk}).Glx.ConcIU(ii));
-                            tmp8 = 'Glx/Cr: ';
-                            tmp9 = sprintf('%.2f', MRS_struct.out.(vox{kk}).Glx.ConcCr(ii));
+                            text(0.4, text_pos-14*shift, 'Quantification  ', 'FontName', 'Arial', 'FontSize', 10, 'FontWeight', 'bold', 'HorizontalAlignment', 'right');
                             
-                            text(0.4, text_pos-14*shift, tmp1, 'FontName', 'Arial', 'FontSize', 10, 'FontWeight', 'bold', 'HorizontalAlignment', 'right');
-                            text(0.4, text_pos-15*shift, tmp2, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                            text(0.425, text_pos-15*shift, tmp3, 'FontName', 'Arial', 'FontSize', 10);
-                            text(0.4, text_pos-16*shift, tmp4, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                            text(0.425, text_pos-16*shift, tmp5, 'FontName', 'Arial', 'FontSize', 10);
-                            text(0.4, text_pos-17*shift, tmp6, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                            text(0.425, text_pos-17*shift, tmp7, 'FontName', 'Arial', 'FontSize', 10);
-                            text(0.4, text_pos-18*shift, tmp8, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                            text(0.425, text_pos-18*shift, tmp9, 'FontName', 'Arial', 'FontSize', 10);
+                            tmp1 = 'GABA+/Water: ';
+                            tmp2 = sprintf('%.2f i.u.', MRS_struct.out.(vox{kk}).GABA.ConcIU(ii));
+                            tmp3 = 'GABA+/Cr: ';
+                            tmp4 = sprintf('%.2f', MRS_struct.out.(vox{kk}).GABA.ConcCr(ii));
+                            tmp5 = 'Glx/Water: ';
+                            tmp6 = sprintf('%.2f i.u.', MRS_struct.out.(vox{kk}).Glx.ConcIU(ii));
+                            tmp7 = 'Glx/Cr: ';
+                            tmp8 = sprintf('%.2f', MRS_struct.out.(vox{kk}).Glx.ConcCr(ii));
+                            
+                            text(0.4, text_pos-15*shift, tmp1, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                            text(0.425, text_pos-15*shift, tmp2, 'FontName', 'Arial', 'FontSize', 10);
+                            text(0.4, text_pos-16*shift, tmp3, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                            text(0.425, text_pos-16*shift, tmp4, 'FontName', 'Arial', 'FontSize', 10);
+                            text(0.4, text_pos-17*shift, tmp5, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                            text(0.425, text_pos-17*shift, tmp6, 'FontName', 'Arial', 'FontSize', 10);
+                            text(0.4, text_pos-18*shift, tmp7, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                            text(0.425, text_pos-18*shift, tmp8, 'FontName', 'Arial', 'FontSize', 10);
+                            
                             n = 0;
                             
                     end
                     
                     % 6. FitVer
-                    text(0.4, text_pos-19*shift+n, 'FitVer: ', 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                    text(0.425, text_pos-19*shift+n, MRS_struct.version.fit, 'FontName', 'Arial', 'FontSize', 10);
+                    text(0.4, text_pos-19.5*shift+n, 'FitVer: ', 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                    text(0.425, text_pos-19.5*shift+n, MRS_struct.version.fit, 'FontName', 'Arial', 'FontSize', 10);
                     
                 else
                     
-                    tmp1 = 'Cr: ';
-                    tmp2 = sprintf('%.3g', MRS_struct.out.(vox{kk}).Cr.Area(ii));
+                    % 2. Area (Cr)
+                    tmp1 = sprintf('%.3g', MRS_struct.out.(vox{kk}).Cr.Area(ii));
                     
-                    text(0.4, text_pos-4*shift+n, tmp1, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                    text(0.425, text_pos-4*shift+n, tmp2, 'FontName', 'Arial', 'FontSize', 10);
+                    text(0.4, text_pos-4*shift+n, 'Cr: ', 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                    text(0.425, text_pos-4*shift+n, tmp1, 'FontName', 'Arial', 'FontSize', 10);
                     
-                    tmp1 = 'FWHM  ';
-                    text(0.4, text_pos-5*shift+n, tmp1, 'FontName', 'Arial', 'FontSize', 10, 'FontWeight', 'bold', 'HorizontalAlignment', 'right');
+                    % 3. FWHM
+                    text(0.4, text_pos-5*shift+n, 'FWHM  ', 'FontName', 'Arial', 'FontSize', 10, 'FontWeight', 'bold', 'HorizontalAlignment', 'right');
                     
                     tmp1 = sprintf('%.2f Hz', MRS_struct.out.(vox{kk}).Cr.FWHM(ii));
                     text(0.4, text_pos-6*shift+n, 'Cr: ', 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
                     text(0.425, text_pos-6*shift+n, tmp1, 'FontName', 'Arial', 'FontSize', 10);
                     
                     % 4a. Fit Error
-                    tmp1 = 'Fit Error  ';
-                    text(0.4, text_pos-7*shift+n, tmp1, 'FontName', 'Arial', 'FontSize', 10, 'FontWeight', 'bold', 'HorizontalAlignment', 'right');
+                    text(0.4, text_pos-7*shift+n, 'Fit Error  ', 'FontName', 'Arial', 'FontSize', 10, 'FontWeight', 'bold', 'HorizontalAlignment', 'right');
                     
                     switch target{jj}
                         
                         case {'GABA','Glx','GSH','Lac','EtOH'}
                             % 4b. Fit Error
                             if strcmpi(target{jj},'GABA')
-                                tmp2 = 'GABA+,Cr: ';
+                                tmp1 = 'GABA+,Cr: ';
+                            elseif strcmpi(target{jj},'Lac')
+                                tmp1 = 'Lac+MM,Cr: ';
                             else
-                                tmp2 = sprintf('%s,Cr: ', target{jj});
+                                tmp1 = sprintf('%s,Cr: ', target{jj});
                             end
-                            tmp3 = sprintf('%.2f%%', MRS_struct.out.(vox{kk}).(target{jj}).FitError_Cr(ii));
+                            tmp2 = sprintf('%.2f%%', MRS_struct.out.(vox{kk}).(target{jj}).FitError_Cr(ii));
                             
-                            text(0.4, text_pos-8*shift+n, tmp2, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                            text(0.425, text_pos-8*shift+n, tmp3, 'FontName', 'Arial', 'FontSize', 10);
+                            text(0.4, text_pos-8*shift+n, tmp1, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                            text(0.425, text_pos-8*shift+n, tmp2, 'FontName', 'Arial', 'FontSize', 10);
                             
                             % 5. Quantification
-                            tmp1 = 'Quantification';
-                            if strcmpi(target{jj},'GABA')
-                                tmp2 = 'GABA+/Cr: ';
-                            else
-                                tmp2 = sprintf('%s/Cr: ', target{jj});
-                            end
-                            tmp3 = sprintf('%.2f', MRS_struct.out.(vox{kk}).(target{jj}).ConcCr(ii));
+                            text(0.4, text_pos-9*shift+n, 'Quantification  ', 'FontName', 'Arial', 'FontSize', 10, 'FontWeight', 'bold', 'HorizontalAlignment', 'right');
                             
-                            text(0.4, text_pos-9*shift+n, tmp1, 'FontName', 'Arial', 'FontSize', 10, 'FontWeight', 'bold', 'HorizontalAlignment', 'right');
-                            text(0.4, text_pos-10*shift+n, tmp2, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                            text(0.425, text_pos-10*shift+n, tmp3, 'FontName', 'Arial', 'FontSize', 10);
+                            if strcmpi(target{jj},'GABA')
+                                tmp1 = 'GABA+/Cr: ';
+                            elseif strcmpi(target{jj},'Lac')
+                                tmp1 = 'Lac+MM/Cr: ';
+                            else
+                                tmp1 = sprintf('%s/Cr: ', target{jj});
+                            end
+                            tmp2 = sprintf('%.2f', MRS_struct.out.(vox{kk}).(target{jj}).ConcCr(ii));
+                            
+                            text(0.4, text_pos-10*shift+n, tmp1, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                            text(0.425, text_pos-10*shift+n, tmp2, 'FontName', 'Arial', 'FontSize', 10);
+                            
                             n = 3*shift;
                             
                         case 'GABAGlx'
@@ -1274,24 +1290,25 @@ for kk = 1:length(vox)
                             text(0.425, text_pos-9*shift, tmp4, 'FontName', 'Arial', 'FontSize', 10);
                             
                             % 5. Quantification
-                            tmp1 = 'Quantification  ';
-                            tmp2 = 'GABA+/Cr: ';
-                            tmp3 = sprintf('%.2f', MRS_struct.out.(vox{kk}).GABA.ConcCr(ii));
-                            tmp4 = 'Glx/Cr: ';
-                            tmp5 = sprintf('%.2f', MRS_struct.out.(vox{kk}).Glx.ConcCr(ii));
+                            text(0.4, text_pos-10*shift, 'Quantification  ', 'FontName', 'Arial', 'FontSize', 10, 'FontWeight', 'bold', 'HorizontalAlignment', 'right');
                             
-                            text(0.4, text_pos-10*shift, tmp1, 'FontName', 'Arial', 'FontSize', 10, 'FontWeight', 'bold', 'HorizontalAlignment', 'right');
-                            text(0.4, text_pos-11*shift, tmp2, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                            text(0.425, text_pos-11*shift, tmp3, 'FontName', 'Arial', 'FontSize', 10);
-                            text(0.4, text_pos-12*shift, tmp4, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                            text(0.425, text_pos-12*shift, tmp5, 'FontName', 'Arial', 'FontSize', 10);
+                            tmp1 = 'GABA+/Cr: ';
+                            tmp2 = sprintf('%.2f', MRS_struct.out.(vox{kk}).GABA.ConcCr(ii));
+                            tmp3 = 'Glx/Cr: ';
+                            tmp4 = sprintf('%.2f', MRS_struct.out.(vox{kk}).Glx.ConcCr(ii));
+                            
+                            text(0.4, text_pos-11*shift, tmp1, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                            text(0.425, text_pos-11*shift, tmp2, 'FontName', 'Arial', 'FontSize', 10);
+                            text(0.4, text_pos-12*shift, tmp3, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                            text(0.425, text_pos-12*shift, tmp4, 'FontName', 'Arial', 'FontSize', 10);
+                            
                             n = 0;
                             
                     end
                     
                     % 6. FitVer
-                    text(0.4, text_pos-13*shift+n, 'FitVer: ', 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-                    text(0.425, text_pos-13*shift+n, MRS_struct.version.fit, 'FontName', 'Arial', 'FontSize', 10);
+                    text(0.4, text_pos-13.5*shift+n, 'FitVer: ', 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+                    text(0.425, text_pos-13.5*shift+n, MRS_struct.version.fit, 'FontName', 'Arial', 'FontSize', 10);
                     
                 end
                 
@@ -1529,7 +1546,7 @@ F = x(2)*(freq-x(1))+x(3);
 %%%%%%%%%%%%%%%% CALCULATE I.U. %%%%%%%%%%%%%%%%
 function MRS_struct = CalcIU(MRS_struct, vox, metab, ii)
 % Function for quantifying concentration in institutional units
-% Convert metabolits and water areas to institutional units
+% Convert metabolite and water areas to institutional units
 % (pseudo-concentration in mmol/L)
 
 TR = MRS_struct.p.TR(ii)/1e3;

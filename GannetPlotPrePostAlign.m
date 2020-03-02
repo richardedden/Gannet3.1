@@ -45,8 +45,14 @@ if MRS_struct.p.HERMES
     
     % Stack spectra
     if MRS_struct.p.phantom
-        signalrange = max(max(real(SpectraToPlot(1:2,peakrange)))) - min(min(real(SpectraToPlot(1:2,peakrange))));
+        signalrange = max(max(real(SpectraToPlot(1:2,logical(peakrange(1,:)))))) - min(min(real(SpectraToPlot(1:2,logical(peakrange(1,:))))));
         SpectraToPlot(3:4,:) = SpectraToPlot(3:4,:) + signalrange;
+        
+        yaxismax = max(real(SpectraToPlot(3,logical(peakrange(2,:)))));
+        yaxismin = min(real(SpectraToPlot(1,logical(peakrange(1,:)))));
+        yrange = abs(yaxismax - yaxismin);
+        yaxismax = yaxismax + 0.1*yrange;
+        yaxismin = yaxismin - 0.1*yrange;
     else
         if all(ismember(MRS_struct.p.target,{'GABAGlx','GSH'})) || all(ismember(MRS_struct.p.target,{'GABA','GSH'}))
             if ~MRS_struct.p.HERCULES

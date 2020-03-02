@@ -1,6 +1,6 @@
 function MRS_struct = GannetQuantify(MRS_struct)
 
-MRS_struct.version.quantify = '190607';
+MRS_struct.version.quantify = '200226';
 
 % ******
 % RE (190107): Major change to water concentration calc to bring into line
@@ -236,7 +236,9 @@ for ii = 1:numscans
             switch target{jj}
                 case 'GABA'
                     tmp2 = 'GABA+';
-                case {'Glx','GSH','Lac'}
+                case 'Lac'
+                    tmp2 = 'Lac+MM';
+                case {'Glx','GSH','EtOH'}
                     tmp2 = target{jj};
             end
             
@@ -298,8 +300,8 @@ for ii = 1:numscans
         text(0.4, text_pos-0.2, tmp1, 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
         text(0.425, text_pos-0.2, T1image, 'FontName', 'Arial', 'FontSize', 10, 'Interpreter', 'none');
         
-        text(0.4, text_pos-0.3, 'QuantifyVer:', 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
-        text(0.425, text_pos-0.3, MRS_struct.version.quantify, 'FontName', 'Arial', 'FontSize', 10);
+        text(0.4, text_pos-0.35, 'QuantifyVer:', 'FontName', 'Arial', 'FontSize', 10, 'HorizontalAlignment', 'right');
+        text(0.425, text_pos-0.35, MRS_struct.version.quantify, 'FontName', 'Arial', 'FontSize', 10);
         
         % Gannet logo
         Gannet_path = which('GannetLoad');

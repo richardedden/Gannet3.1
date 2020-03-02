@@ -3,13 +3,13 @@ function noise = CalcNoise(freq, spec)
 
 N = 2; % fit second-order polynomial
 
-indA = freq >= 10 & freq <= 11;
+indA = freq >= 8 & freq <= 9;
 noiseA = real(spec(indA));
 pA = polyfit(freq(indA), noiseA, N);
 noiseA_fit = polyval(pA, freq(indA));
 noiseA_detrended = noiseA - noiseA_fit;
 
-indB = freq >= 11 & freq <= 12;
+indB = freq >= 9 & freq <= 10;
 noiseB = real(spec(indB));
 pB = polyfit(freq(indB), noiseB, N);
 noiseB_fit = polyval(pB, freq(indB));

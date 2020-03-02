@@ -2,7 +2,7 @@ function MRS_struct = GannetCoRegister(MRS_struct, nii_name)
 
 % Coregistration of MRS voxel volumes to imaging datasets, based on headers.
 
-MRS_struct.version.coreg = '190808';
+MRS_struct.version.coreg = '200115';
 
 warning('off'); % temporarily suppress warning messages
 
@@ -69,7 +69,7 @@ for ii = 1:numscans
                 fname = MRS_struct.metabfile{ii*2-1};
                 MRS_struct = GannetMask_SiemensRDA(fname, nii_name{ii}, MRS_struct, ii, vox, kk);
 
-            case {'Siemens_twix', 'Siemens_dicom'} 
+            case {'Siemens_twix', 'Siemens_dicom', 'dicom'} 
                 fname = MRS_struct.metabfile{ii};
                 MRS_struct = GannetMask_SiemensTWIX(fname, nii_name{ii}, MRS_struct, ii, vox, kk);
 

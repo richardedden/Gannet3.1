@@ -282,7 +282,7 @@ if nechoes == 1
     MRS_struct.p.Nwateravg(ii) = 8;
     ShapeData = reshape(raw_data, [2 MRS_struct.p.npoints(ii) totalframes nreceivers]);
     WaterData = ShapeData(:,:,2:9,:);
-    FullData = ShapeData(:,:,10:end,:);
+    MetabData = ShapeData(:,:,10:end,:);
     
     totalframes = totalframes - 9;
     MRS_struct.p.nrows(ii) = totalframes;
@@ -331,7 +331,7 @@ else
     Y1 = (-1).^(MRS_struct.p.GE.noadd * (X1-1));
     Y1 = permute(repmat(Y1, [1 MRS_struct.p.npoints(ii) 2 nreceivers]), [3 2 1 4]);
     Y2 = 1 + refframes + (totalframes/nechoes) * (X2-1) + X1;
-    FullData = Y1 .* ShapeData(:,:,Y2,:) * mult;
+    MetabData = Y1 .* ShapeData(:,:,Y2,:) * mult;
     
     totalframes = totalframes - (refframes + 1) * nechoes; % RTN 2017
     MRS_struct.p.nrows(ii) = totalframes;
@@ -339,14 +339,13 @@ else
     
 end
 
-FullData = FullData .* repmat([1; 1i], [1 MRS_struct.p.npoints(ii) totalframes nreceivers]);
-FullData = squeeze(sum(FullData,1));
-FullData = permute(FullData, [3 1 2]);
+MetabData = MetabData .* repmat([1; 1i], [1 MRS_struct.p.npoints(ii) totalframes nreceivers]);
+MetabData = squeeze(sum(MetabData,1));
+MetabData = permute(MetabData, [3 1 2]);
 WaterData = WaterData .* repmat([1; 1i], [1 MRS_struct.p.npoints(ii) waterframes nreceivers]);
 WaterData = squeeze(sum(WaterData,1));
 WaterData = permute(WaterData, [3 1 2]);
 
-% MM (170505)
 firstpoint_water = conj(WaterData(:,1,:));
 channels_scale = squeeze(sqrt(sum(firstpoint_water .* conj(firstpoint_water),1)));
 channels_scale = repmat(channels_scale, [1 nreceivers MRS_struct.p.npoints(ii)]);
@@ -357,17 +356,55 @@ WaterData = WaterData .* firstpoint_water;
 WaterData = squeeze(sum(WaterData,1));
 MRS_struct.fids.data_water = WaterData;
 
-% Use first point of water data to phase water-suppressed data
 firstpoint = mean(firstpoint_water,3);
-firstpoint = repmat(firstpoint, [1 1 size(FullData,3)]);
+firstpoint = repmat(firstpoint, [1 1 size(MetabData,3)]);
 
-FullData = FullData .* firstpoint;
-FullData = squeeze(sum(FullData,1));
-MRS_struct.fids.data = FullData;
+MetabData = MetabData .* firstpoint;
+MetabData = squeeze(sum(MetabData,1));
+MRS_struct.fids.data = MetabData;
 
 % Rescale, otherwise numbers blow up
 MRS_struct.fids.data = MRS_struct.fids.data/1e11;
 MRS_struct.fids.data_water = MRS_struct.fids.data_water/1e11;
+
+% % Generalized least squares method (MM: under dev.)
+% % Align water signal over each avg. for each coil element
+% lsqnonlinopts = optimoptions(@lsqnonlin);
+% lsqnonlinopts = optimoptions(lsqnonlinopts,'Algorithm','levenberg-marquardt','Display','off');
+% t1 = 0:(1/MRS_struct.p.sw(ii)):(size(WaterData,2)-1)*(1/MRS_struct.p.sw(ii));
+% tMax = find(t1 <= 0.2,1,'last');
+% t2 = 0:(1/MRS_struct.p.sw(ii)):(tMax-1)*(1/MRS_struct.p.sw(ii));
+% 
+% for jj = 1:size(WaterData,1)
+%     flatdata(:,1,:) = real(WaterData(jj,1:tMax,:));
+%     flatdata(:,2,:) = imag(WaterData(jj,1:tMax,:));
+%     target = squeeze(flatdata(:,:,1));
+%     target = target(:);
+%     for kk = 2:size(WaterData,3)
+%         transient = squeeze(flatdata(:,:,kk));
+%         fun = @(x) SpecReg(double(transient(:)), double(target), t2, x);
+%         p = lsqnonlin(fun, [0 0], [], [], lsqnonlinopts);
+%         WaterData(jj,:,kk) = WaterData(jj,:,kk) .* ...
+%             exp(1i*p(1)*2*pi*t1) * exp(1i*pi/180*p(2));
+%     end
+% end
+% 
+% WaterData_avg = mean(WaterData,3);
+% e = WaterData_avg(:,ceil(0.75*size(WaterData_avg,2)):end);
+% Psi = e*e';
+% [~,ind] = max(abs(WaterData_avg),[],2);
+% ind = mode(ind);
+% S = WaterData_avg(:,ind);
+% w = (S'*(Psi\S))^-1 * S' / Psi;
+% WaterData = w.' .* WaterData;
+% MRS_struct.fids.data_water = squeeze(sum(WaterData,1));
+% 
+% MetabData_avg = mean(MetabData,3);
+% e = MetabData_avg(:,ceil(0.75*size(MetabData_avg,2)):end);
+% Psi = e*e';
+% w = (S'*(Psi\S))^-1 * S' / Psi;
+% MetabData = w.' .* MetabData;
+% MRS_struct.fids.data = squeeze(sum(MetabData,1));
 
 end
 

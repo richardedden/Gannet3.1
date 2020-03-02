@@ -1,7 +1,7 @@
 function MRS_struct = GannetLoad(varargin)
 % Gannet 3.1 GannetLoad
 % Started by RAEE Nov. 5, 2012
-% Updates by MGS, MM, GO 2016-2019
+% Updates by MGS, MM, GO 2016-2020
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Workflow summary
@@ -13,8 +13,8 @@ function MRS_struct = GannetLoad(varargin)
 %   6. Build GannetLoad output
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-MRS_struct.version.Gannet = '3.1.4';
-MRS_struct.version.load = '191003';
+MRS_struct.version.Gannet = '3.1.5';
+MRS_struct.version.load = '200226';
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   0. Check the file list for typos
@@ -413,7 +413,9 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
             end % end of H2O reference loop
             
             % Global zero-order phase correction
-            MRS_struct.fids.data = PhaseCorrection(MRS_struct.fids.data, MRS_struct);
+            if ~MRS_struct.p.phantom
+                MRS_struct.fids.data = PhaseCorrection(MRS_struct.fids.data, MRS_struct);
+            end
             
             % Line-broadening, zero-filling and FFT
             AllFramesFT = MRS_struct.fids.data .* repmat(exp(-time'*MRS_struct.p.LB*pi), [1 size(MRS_struct.fids.data,2)]);
@@ -708,7 +710,11 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
             
             % Top right
             if MRS_struct.p.phantom
-                F0 = 4.8;
+                if MRS_struct.p.HERMES
+                    F0 = 3.02;
+                else
+                    F0 = 4.8;
+                end
             elseif MRS_struct.p.HERMES || any(strcmp(MRS_struct.p.target,'GSH'))
                 F0 = 3.02;
             else

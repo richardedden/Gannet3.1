@@ -1,13 +1,16 @@
 function MRS_struct = GannetPreInitialise(MRS_struct)
 
 % Acquisition parameters
-    MRS_struct.p.target = {'GABAGlx'}; % edited metabolite(s) of interest; options are:
+    MRS_struct.p.target = {'GABAGlx'}; % edited metabolite(s) of interest; allowable options are:
                                        % if MEGA-PRESS:
-                                       %   {'GABAGlx'}, {'GSH'}, {'Lac'} or {'EtOH'}
+                                       %   {'GABAGlx'}, {'GSH'}, {'Lac'}, or {'EtOH'}
                                        % if HERMES:
-                                       %   {'GABAGlx','GSH'}, {'Lac','GSH'} or {'EtOH','GABA','GSH'}
+                                       %   {'GABAGlx','GSH'}, {'Lac','GSH'}, or {'EtOH','GABA','GSH'}
                                        % if HERCULES:
                                        %   {'GABAGlx','GSH'}
+                                       % if phantom data:
+                                       %   and MEGA-PRESS: {'GABA'}, {'Glx'}, {'GSH'}, {'Lac'}, or {'EtOH'}
+                                       %   and HERMES: {'GABA','GSH'}, {'Glx','GSH'}, {'Lac','GSH'}, or {'EtOH','GABA','GSH'}
     MRS_struct.p.ONOFForder = 'offfirst'; % order of editing pulses; options are 'onfirst' or 'offfirst'
     MRS_struct.p.seqorig = 'JHU'; % origin of Philips patch; options are 'JHU' or 'Philips'
     

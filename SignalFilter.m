@@ -13,16 +13,18 @@ ii = MRS_struct.ii;
 freqRange = MRS_struct.p.sw(ii)/MRS_struct.p.LarmorFreq(ii);
 freq = (MRS_struct.p.npoints(ii) + 1 - (1:MRS_struct.p.npoints(ii))) / MRS_struct.p.npoints(ii) * freqRange + 4.68 - freqRange/2;
 waterLim = freq <= 5.5 & freq >= 3.6;
-noiseLim = freq <= 11 & freq >= 10;
+noiseLim = freq <= 9 & freq >= 8;
 
 y.real = real(in) - z.real;
 y.imag = imag(in) - z.imag;
 if water_flag % some residual water may remain so replace with noise
-    rng('shuffle');
+    s = rng; % save current rng
+    rng(66,'twister'); % for reproducibility
     noise.real = datasample(y.real(noiseLim), sum(waterLim), 'Replace', true);
     noise.imag = datasample(y.imag(noiseLim), sum(waterLim), 'Replace', true);
     y.real(waterLim) = noise.real;
     y.imag(waterLim) = noise.imag;
+    rng(s); % restore previous rng
 end
 
 out = ifft(fftshift(complex(y.real, y.imag)));
@@ -38,7 +40,7 @@ Wy = abs(cwt2(real(y), 10)).^2;
 ii = MRS_struct.ii;
 freqRange = MRS_struct.p.sw(ii)/MRS_struct.p.LarmorFreq(ii);
 freq = (length(Wy) + 1 - (1:length(Wy))) / length(Wy) * freqRange + 4.68 - freqRange/2;
-noiseLim = freq <= 11 & freq >= 10;
+noiseLim = freq <= 9 & freq >= 8;
 
 sigma = std(Wy(noiseLim));
 

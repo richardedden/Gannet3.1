@@ -38,7 +38,7 @@ freqRange = MRS_struct.p.sw(ii)/MRS_struct.p.LarmorFreq(ii);
 freq = (MRS_struct.p.npoints(ii) + 1 - (1:MRS_struct.p.npoints(ii))) / MRS_struct.p.npoints(ii) * freqRange + 4.68 - freqRange/2;
 waterLim = freq <= 4.68 + 0.25 & freq >= 4.68 - 0.25;
 lipidLim = freq <= 1.85 & freq >= 0;
-noiseLim = freq <= 11 & freq >= 10;
+noiseLim = freq <= 9 & freq >= 8;
 
 S = mean(real(fftshift(fft(MRS_struct.fids.data,[],1),1)),2);
 r = std(S(lipidLim)) / std(S(noiseLim));

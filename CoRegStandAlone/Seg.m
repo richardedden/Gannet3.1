@@ -14,6 +14,8 @@ function MRS_struct = Seg(MRS_struct)
 MRS_struct.version.segment = '190529';
 vox = MRS_struct.p.Vox(1);
 
+warning('off'); % temporarily suppress warning messages
+
 % First check if SPM12 is installed and on the search path
 spmversion = fileparts(which('spm'));
 if isempty(spmversion)
@@ -88,7 +90,7 @@ for ii = 1:length(MRS_struct.metabfile)
         CSF_voxmask_vol = CSFvol.private.dat(:,:,:) .* voxmaskvol.private.dat(:,:,:);
         O_CSFvox = spm_write_vol(O_CSFvox, CSF_voxmask_vol);
         
-        % 3 - Calculate an adjusted gabaiu and output it to the structure
+        % 3 - Calculate a CSF-corrected i.u. value and output it to the structure
         
         GMsum  = sum(sum(sum(O_GMvox.private.dat(:,:,:))));
         WMsum  = sum(sum(sum(O_WMvox.private.dat(:,:,:))));
@@ -164,12 +166,17 @@ for ii = 1:length(MRS_struct.metabfile)
         text(0.5, text_pos-0.72, tmp1, 'FontName', 'Arial', 'HorizontalAlignment','right', 'VerticalAlignment', 'top', 'FontSize', 13);
         text(0.5, text_pos-0.72, MRS_struct.version.segment,  'FontName', 'Arial', 'VerticalAlignment', 'top', 'FontSize', 13);
         
-        % Voxel segmentation (MM: 180807)
-        img_t     = flipud(voxel2world_space(spm_vol(anatimage), MRS_struct.p.voxoff(ii,:)));
-        vox_t     = flipud(voxel2world_space(voxmaskvol, MRS_struct.p.voxoff(ii,:)));
-        vox_t_GM  = flipud(voxel2world_space(O_GMvox, MRS_struct.p.voxoff(ii,:)));
-        vox_t_WM  = flipud(voxel2world_space(O_WMvox, MRS_struct.p.voxoff(ii,:)));
-        vox_t_CSF = flipud(voxel2world_space(O_CSFvox, MRS_struct.p.voxoff(ii,:)));
+        if isfield(MRS_struct.p,'TablePosition')
+            VoxOffs = MRS_struct.p.voxoff(ii,:) + MRS_struct.p.TablePosition(ii,:);
+        else
+            VoxOffs = MRS_struct.p.voxoff(ii,:);
+        end
+        
+        img_t     = flipud(voxel2world_space(spm_vol(anatimage), VoxOffs));
+        vox_t     = flipud(voxel2world_space(voxmaskvol, VoxOffs));
+        vox_t_GM  = flipud(voxel2world_space(O_GMvox, VoxOffs));
+        vox_t_WM  = flipud(voxel2world_space(O_WMvox, VoxOffs));
+        vox_t_CSF = flipud(voxel2world_space(O_CSFvox, VoxOffs));
         img_t = img_t/MRS_struct.mask.(vox{kk}).T1max(ii);
         img_montage = [img_t+0.175*vox_t, img_t+0.21*vox_t_GM, img_t+0.25*vox_t_WM, img_t+0.4*vox_t_CSF];
         MRS_struct.mask.(vox{kk}).img_montage{ii} = img_montage;
@@ -235,8 +242,8 @@ for ii = 1:length(MRS_struct.metabfile)
         end
         
         % Create output folder
-        if ~exist(fullfile(pwd, 'GannetSegment_output'),'dir')
-            mkdir(fullfile(pwd, 'GannetSegment_output'));
+        if ~exist(fullfile(pwd, 'CoRegStandAlone_output'),'dir')
+            mkdir(fullfile(pwd, 'CoRegStandAlone_output'));
         end
         
         % Save PDF output
@@ -245,16 +252,18 @@ for ii = 1:length(MRS_struct.metabfile)
         set(h,'PaperPosition',[0 0 11 8.5]);
         
         if strcmpi(MRS_struct.p.vendor,'Philips_data')
-            pdfname = fullfile(pwd, 'GannetSegment_output', [fullpath '_' vox{kk} '_segment.pdf']);
+            pdfname = fullfile(pwd, 'CoRegStandAlone_output', [fullpath '_' vox{kk} '_segment.pdf']);
         else
-            pdfname = fullfile(pwd, 'GannetSegment_output', [metabfile_nopath '_' vox{kk} '_segment.pdf']);
+            pdfname = fullfile(pwd, 'CoRegStandAlone_output', [metabfile_nopath '_' vox{kk} '_segment.pdf']);
         end
         saveas(h, pdfname);
         
-     
+        
     end
     
 end
+
+warning('on'); % turn warnings back on
 
 end
 

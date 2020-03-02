@@ -56,7 +56,7 @@ end
 clear tmp
 [~, data] = FlattenData(data);
 
-% Set HERMES subexperiment indices (A, B, C, D) 
+% Set HERMES subexperiment indices (A, B, C, D)
 if MRS_struct.p.HERMES
     if ~MRS_struct.p.HERCULES
         if length(MRS_struct.p.target) == 2 && all(strcmp(MRS_struct.p.target,{'GABAGlx','GSH'}))
@@ -133,22 +133,23 @@ else
     
     switch MRS_struct.p.target{1}
         case {'GABAGlx','Lac','EtOH'}
-            % Water
-            freqLim = freq <= 4.68+0.22 & freq >= 4.68-0.22;
-            [~,i] = max(abs(data(freqLim,:)));
-            freq2 = freq(freqLim);
-            maxFreq = freq2(i);
-            for jj = 1:2
-                freqLim(jj,:) = freq <= maxFreq(jj)+0.22 & freq >= maxFreq(jj)-0.22;
+            if std(diff(MRS_struct.spec.F0freq(ii,:))) < 0.05 % if very strong water suppression wasn't used, use residual water
+                freqLim = freq <= 4.68+0.22 & freq >= 4.68-0.22;
+                [~,i] = max(abs(data(freqLim,:)));
+                freq2 = freq(freqLim);
+                maxFreq = freq2(i);
+                for jj = 1:2
+                    freqLim(jj,:) = freq <= maxFreq(jj)+0.22 & freq >= maxFreq(jj)-0.22;
+                end
+            else % if very strong water suppression was used, use Cho
+                freqLim = freq <= 3.2+0.09 & freq >= 3.2-0.09;
+                [~,i] = max(abs(data(freqLim,:)));
+                freq2 = freq(freqLim);
+                maxFreq = freq2(i);
+                for jj = 1:2
+                    freqLim(jj,:) = freq <= maxFreq(jj)+0.08 & freq >= maxFreq(jj)-0.08;
+                end
             end
-%             % Cho
-%             freqLim = freq <= 3.2+0.09 & freq >= 3.2-0.09;
-%             [~,i] = max(abs(data(freqLim,:)));
-%             freq2 = freq(freqLim);
-%             maxFreq = freq2(i);
-%             for jj = 1:2
-%                 freqLim(jj,:) = freq <= maxFreq(jj)+0.08 & freq >= maxFreq(jj)-0.08;
-%             end
         case 'GSH'
             % NAA
             freqLim = freq <= 2.01+0.13 & freq >= 2.01-0.13;
@@ -213,12 +214,7 @@ if MRS_struct.p.HERMES
 else
     
     a = max(max(max(flatdata)));
-    switch MRS_struct.p.target{1}
-        case {'GABAGlx','Lac','EtOH'}
-            fun = @(x) objFunc(flatdata./a, freqLim, t, x);
-        case 'GSH'
-            fun = @(x) objFunc(flatdata./a, freqLim, t, x);
-    end
+    fun = @(x) objFunc(flatdata./a, freqLim, t, x);
     param = lsqnonlin(fun, x0, [], [], lsqnonlinopts);
     
 end
