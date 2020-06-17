@@ -36,7 +36,7 @@ w = cell(1,n);
 data = complex(zeros(size(fids,1),n));
 time = (0:(MRS_struct.p.npoints(ii)-1))'/MRS_struct.p.sw(ii);
 tMax = find(time <= 0.1,1,'last');
-if strcmp(MRS_struct.p.vendor,'Siemens_rda') % if .rda data, use conventional averaging
+if strcmp(MRS_struct.p.vendor,'Siemens_rda') || size(MRS_struct.fids.data,2) <=4 % if .rda data, use conventional averaging
     data = fids;
 else
     for jj = 1:n
@@ -93,7 +93,7 @@ x0 = [Area Width maxFreq 0 Baseline 0 1] .* [1 2*MRS_struct.p.LarmorFreq(ii) MRS
 ModelParamChoCr = FitChoCr(freq(freqLim), SUM_ChoCr, x0, MRS_struct.p.LarmorFreq(ii));
 fids = fids * exp(1i*pi/180*ModelParamChoCr(4));
 
-if strcmp(MRS_struct.p.vendor,'Siemens_rda') % if .rda data, use conventional averaging
+if strcmp(MRS_struct.p.vendor,'Siemens_rda') || size(MRS_struct.fids.data,2) <=4 % if .rda data, use conventional averaging
     data = fids;
 else
     for jj = 1:n

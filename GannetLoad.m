@@ -224,7 +224,7 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
 %                         MRS_struct.fids.ON_OFF=repmat([1 1 0 0],[1 MRS_struct.p.Navg(ii)/4]);
 %                         MRS_struct.fids.ON_OFF=MRS_struct.fids.ON_OFF(:).';
 %                     else
-                        MRS_struct.fids.ON_OFF=repmat([1 0],[1 MRS_struct.p.Navg(ii)/2]);
+                        MRS_struct.fids.ON_OFF=repmat([1 0],[1 size(MRS_struct.fids.data,2)/2]);
                         MRS_struct.fids.ON_OFF=MRS_struct.fids.ON_OFF(:).';
 %                    end
                     case 'offfirst'
@@ -232,7 +232,7 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
 %                         MRS_struct.fids.ON_OFF=repmat([0 0 1 1],[1 MRS_struct.p.Navg(ii)/4]);
 %                         MRS_struct.fids.ON_OFF=MRS_struct.fids.ON_OFF(:).';
 %                     else
-                        MRS_struct.fids.ON_OFF=repmat([0 1],[1 MRS_struct.p.Navg(ii)/2]);
+                        MRS_struct.fids.ON_OFF=repmat([0 1],[1 size(MRS_struct.fids.data,2)/2]);
                         MRS_struct.fids.ON_OFF=MRS_struct.fids.ON_OFF(:).';
 %                    end
                 end
